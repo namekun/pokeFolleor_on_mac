@@ -38,6 +38,40 @@ It was my girlfriend's idea, after I mentioned I wanted to build a plugin.
 
 ---
 
+## macOS Desktop App
+
+This fork adds a native macOS desktop mode: the same Pokémon follows your mouse
+cursor across the whole desktop (over every app, not just web pages), using a
+transparent click-through overlay. It reuses the extension's sprite engine and
+settings popup as-is via a small Electron wrapper in `desktop/`.
+
+### Run
+
+```bash
+npm install
+npm run app
+```
+
+The app lives in the menu bar (Pokéball icon) — no Dock icon. From the tray menu
+you can toggle the follower, open the Settings window (same UI as the extension
+popup: pick a Pokémon, scale/distance/speed), or quit. Settings persist in
+`~/Library/Application Support/pokefollower_cursor_web_plugin/settings.json`.
+
+### Build a standalone .app
+
+```bash
+npm run dist   # outputs dist/mac*/PokeFollower.app (unsigned)
+```
+
+Notes:
+
+- The overlay window is click-through and never steals focus; it hops between
+  displays following your cursor.
+- The sprite hides over full-screen apps only if macOS denies overlay windows
+  there; normally `visibleOnFullScreen` keeps it visible.
+
+---
+
 ## About Me
 
 My name is **Ali**. I am trying to build more things, and this plugin was one of my
