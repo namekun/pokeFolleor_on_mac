@@ -121,6 +121,23 @@ function smokeLangProbe() {
   }, 100);
 }
 
+// Sample background-position-y a few times (~50ms apart) and require them to
+// all agree with `expected` before accepting — a single-instant style read
+// can catch a torn/mid-render frame, so this confirms the row is genuinely
+// settled rather than a one-frame blip, without loosening what's required.
+function sampleRowSettled(expected, cb) {
+  const SAMPLE_COUNT = 4;
+  const samples = [];
+  const poll = setInterval(() => {
+    const el = document.getElementById("__vcp1_follower");
+    samples.push(el ? (el.style.backgroundPosition.split(" ")[1] || "") : "");
+    if (samples.length >= SAMPLE_COUNT) {
+      clearInterval(poll);
+      cb(samples.every((s) => s === expected), samples);
+    }
+  }, 50);
+}
+
 // Drive a steady upward cursor motion and check the sprite actually uses the
 // "back" row (default pack: row 4, 40px frames → background-position-y -160px),
 // then stop feeding and confirm it settles back to "front" (row 0 → "0px")
@@ -141,19 +158,28 @@ function smokeFacingProbe() {
     }, 16);
     setTimeout(() => {
       clearInterval(feed);
-      const el = document.getElementById("__vcp1_follower");
-      const posY = el ? (el.style.backgroundPosition.split(" ")[1] || "") : "";
-      if (posY !== "-160px") {
-        ipcRenderer.send("vcp1:smoke-facing", `fail:back:${posY}`);
-        return;
-      }
-      // Feed stopped; wait for velAvg decay + arrival at the idle perch, then
-      // confirm the sprite faces front again instead of staying frozen on back.
-      setTimeout(() => {
-        const el2 = document.getElementById("__vcp1_follower");
-        const posY2 = el2 ? (el2.style.backgroundPosition.split(" ")[1] || "") : "";
-        ipcRenderer.send("vcp1:smoke-facing", posY2 === "0px" ? "ok" : `fail:front:${posY2}`);
-      }, 2500);
+      sampleRowSettled("-160px", (ok, samples) => {
+        if (!ok) {
+          const el = document.getElementById("__vcp1_follower");
+          const diag = el ? { bg: el.style.backgroundPosition, img: el.style.backgroundImage, w: el.style.width, h: el.style.height } : "no-el";
+          ipcRenderer.send("vcp1:smoke-facing", `fail:back:${samples.join(",")}:${JSON.stringify(diag)}`);
+          return;
+        }
+        // Feed stopped; wait for velAvg decay + arrival at the idle perch,
+        // then confirm the sprite faces front again instead of staying
+        // frozen on back.
+        setTimeout(() => {
+          sampleRowSettled("0px", (ok2, samples2) => {
+            if (!ok2) {
+              const el2 = document.getElementById("__vcp1_follower");
+              const diag2 = el2 ? { bg: el2.style.backgroundPosition, img: el2.style.backgroundImage, w: el2.style.width, h: el2.style.height } : "no-el";
+              ipcRenderer.send("vcp1:smoke-facing", `fail:front:${samples2.join(",")}:${JSON.stringify(diag2)}`);
+              return;
+            }
+            ipcRenderer.send("vcp1:smoke-facing", "ok");
+          });
+        }, 2500);
+      });
     }, 900);
   }, 4500);
 }
