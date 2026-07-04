@@ -220,11 +220,17 @@ app.whenReady().then(() => {
   if (store.sync.vcp1_enabled === undefined || SMOKE) store.sync.vcp1_enabled = true;
   if (SMOKE) store.sync.vcp1_pack = "retro/gen-1/009-blastoise"; // facing probe expects this pack's row layout
   if (SMOKE) store.sync.vcp1_lang = "en"; // lang probe must start from English so its switch to Korean is real
+  // facing probe's timing assumes default walk speed/offset — reset in case a
+  // developer's own settings.json (persisted from manual runs) left different values
+  if (SMOKE) { store.sync.vcp1_offset = 30; store.sync.vcp1_lerp = 0.20; }
 
   if (app.dock) app.dock.hide(); // menu-bar utility; no Dock icon
   createTray();
   createOverlay();
-  startCursorFeed();
+  // Smoke probes drive their own synthetic mousemove feed; the real OS cursor
+  // (which may keep moving on the developer's machine during the run) would
+  // otherwise inject unrelated motion into the same overlay and corrupt it.
+  if (!SMOKE) startCursorFeed();
 
   if (SMOKE) {
     setTimeout(() => { console.error("SMOKE_TIMEOUT"); app.exit(1); }, 20000);

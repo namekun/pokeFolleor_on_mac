@@ -33,6 +33,8 @@ const RUNTIME = {
 const SLEEP_TIMEOUT_MS = 30000; // 30s of no movement -> sleep
 const ARRIVE_RADIUS_PX = 6;     // close enough to target to call it "arrived" and settle into idle
 const SLOW_RADIUS_PX   = 60;    // ease walking speed down within this distance for a soft landing
+const VEL_DECAY_DELAY_MS = 80;  // no mousemove for this long -> start decaying velAvg toward zero
+const VEL_DECAY_TAU_MS   = 120; // exponential decay time constant once decaying
 
 function hasState(name) {
   return !!(RUNTIME.meta && RUNTIME.meta.states && RUNTIME.meta.states[name]);
@@ -148,16 +150,18 @@ function pickDir8FromVector(vx, vy) {
 }
 
 // Map that direction to a row index using the pack's rows table for the given state
-function pickRowForState(stateName) {
+function pickRowForState(stateName, dx, dy) {
   const st = RUNTIME.meta?.states?.[stateName];
   if (!st) return 0;
   const rows = st.rows || { front: 0 };
 
   // Prefer 8-way if present, else fall back to nearest cardinal.
-  // Face based on the cursor's own direction of travel — the follower's path
-  // can lag/curve while it catches up, but it should still visibly look like
-  // it's heading toward (or alongside) the cursor, not its own catch-up route.
-  const dir8 = pickDir8FromVector(RUNTIME.velAvg.x, RUNTIME.velAvg.y);
+  // While walking, face the direction the follower is actually travelling —
+  // the pos→target vector recomputed every frame in tick() — since that's
+  // what's visibly happening on screen (cursor velocity can go stale the
+  // moment the cursor stops, while the follower is still catching up).
+  // At rest (idle/sleep) there's no travel direction, so always show front.
+  const dir8 = stateName === "walk" ? pickDir8FromVector(dx, dy) : "front";
   if (dir8 in rows) return rows[dir8];
 
   // Map diagonal to nearest cardinal if diagonal key missing
@@ -342,23 +346,18 @@ function pickStateBySpeed() {
 }
 
 function tick(dtMs) {
-  const desired = pickStateBySpeed();
-  const nextRow = pickRowForState(desired);
-  if (desired !== RUNTIME.anim.name) {
-    // Queue the switch; wait for current cycle to finish before committing
-    if (!RUNTIME.pendingState || RUNTIME.pendingState.name !== desired) {
-      RUNTIME.pendingState = { name: desired, queuedAt: performance.now() };
-    }
-    const st = RUNTIME.meta.states[RUNTIME.anim.name];
-    const atCycleEnd = RUNTIME.anim.frame >= st.frames - 1;
-    const timedOut = (performance.now() - RUNTIME.pendingState.queuedAt) > 300;
-    if (atCycleEnd || timedOut) {
-      RUNTIME.anim.name = RUNTIME.pendingState.name;
-      RUNTIME.anim.row  = pickRowForState(RUNTIME.anim.name);
-      RUNTIME.pendingState = null;
-    }
-  } else {
-    RUNTIME.pendingState = null;
+  const now = performance.now();
+
+  // Once mousemove events stop arriving (cursor idle, or the desktop app's
+  // 60Hz feed pauses), velAvg would otherwise stay frozen on the last sampled
+  // direction forever. Decay it back toward zero so computeTarget's hasDir
+  // check naturally drops out (ending the perch-drift) — facing itself no
+  // longer reads velAvg (see pickRowForState), so this only affects offset.
+  if (now - RUNTIME.lastMoveTs > VEL_DECAY_DELAY_MS) {
+    const decay = Math.exp(-dtMs / VEL_DECAY_TAU_MS);
+    RUNTIME.velAvg.x *= decay;
+    RUNTIME.velAvg.y *= decay;
+    RUNTIME.speedAvg = Math.hypot(RUNTIME.velAvg.x, RUNTIME.velAvg.y);
   }
 
   // follow feel: walk toward the target at a steady pace, like it's actually
@@ -369,6 +368,24 @@ function tick(dtMs) {
   const dx = RUNTIME.target.x - RUNTIME.pos.x;
   const dy = RUNTIME.target.y - RUNTIME.pos.y;
   const dist = Math.hypot(dx, dy);
+
+  const desired = pickStateBySpeed();
+  if (desired !== RUNTIME.anim.name) {
+    // Queue the switch; wait for current cycle to finish before committing
+    if (!RUNTIME.pendingState || RUNTIME.pendingState.name !== desired) {
+      RUNTIME.pendingState = { name: desired, queuedAt: performance.now() };
+    }
+    const st = RUNTIME.meta.states[RUNTIME.anim.name];
+    const atCycleEnd = RUNTIME.anim.frame >= st.frames - 1;
+    const timedOut = (performance.now() - RUNTIME.pendingState.queuedAt) > 300;
+    if (atCycleEnd || timedOut) {
+      RUNTIME.anim.name = RUNTIME.pendingState.name;
+      RUNTIME.anim.row  = pickRowForState(RUNTIME.anim.name, dx, dy);
+      RUNTIME.pendingState = null;
+    }
+  } else {
+    RUNTIME.pendingState = null;
+  }
 
   if (dist > ARRIVE_RADIUS_PX) {
     const walkSpeed = walkSpeedFromConfig(); // px/s
@@ -395,7 +412,7 @@ function tick(dtMs) {
 
   // Keep the row updated continuously for natural facing
   if (RUNTIME.meta && RUNTIME.meta.states) {
-    RUNTIME.anim.row = pickRowForState(RUNTIME.anim.name);
+    RUNTIME.anim.row = pickRowForState(RUNTIME.anim.name, dx, dy);
   }
   applyFrame();
 }
