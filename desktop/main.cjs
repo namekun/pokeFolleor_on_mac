@@ -166,14 +166,28 @@ ipcMain.on("vcp1:message", (e, msg) => {
   }
 });
 const smokePassed = new Set();
+function smokeCheckDone() {
+  if (smokePassed.has("overlay") && smokePassed.has("settings") && smokePassed.has("facing")) {
+    console.log("SMOKE_OK");
+    app.exit(0);
+  }
+}
 ipcMain.on("vcp1:smoke-ok", (_e, which) => {
   if (!SMOKE) return;
   smokePassed.add(which);
   console.log(`SMOKE_${String(which).toUpperCase()}_OK`);
   if (which === "overlay") openSettings();
-  if (smokePassed.has("overlay") && smokePassed.has("settings")) {
-    console.log("SMOKE_OK");
-    app.exit(0);
+  smokeCheckDone();
+});
+ipcMain.on("vcp1:smoke-facing", (_e, result) => {
+  if (!SMOKE) return;
+  if (result === "ok") {
+    smokePassed.add("facing");
+    console.log("SMOKE_FACING_OK");
+    smokeCheckDone();
+  } else {
+    console.error(`SMOKE_FACING_${result}`);
+    app.exit(1);
   }
 });
 
@@ -193,6 +207,7 @@ app.whenReady().then(() => {
 
   loadStore();
   if (store.sync.vcp1_enabled === undefined || SMOKE) store.sync.vcp1_enabled = true;
+  if (SMOKE) store.sync.vcp1_pack = "retro/gen-1/009-blastoise"; // facing probe expects this pack's row layout
 
   if (app.dock) app.dock.hide(); // menu-bar utility; no Dock icon
   createTray();

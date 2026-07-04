@@ -115,25 +115,36 @@ function computeTarget() {
 }
 
 // --- 8-way facing from a direction vector (octants) ---
+// clockwise from right
+const DIR8_KEYS = [
+  "right",      // 0
+  "frontRight", // 1
+  "front",      // 2
+  "frontLeft",  // 3
+  "left",       // 4
+  "backLeft",   // 5
+  "back",       // 6
+  "backRight"   // 7
+];
+const DIR8_HYSTERESIS = 8 * Math.PI / 180; // extra angle needed to leave the current octant
+let dir8Idx = 2; // "front"
+
 function pickDir8FromVector(vx, vy) {
   const dead = 0.3; // small deadzone to reduce jitter
   if (Math.abs(vx) <= dead && Math.abs(vy) <= dead) return "front";
   // DOM coords: +y is downward => vy>0 means "front"
   const angle = Math.atan2(vy, vx);                  // -PI..PI, 0 = right
   const norm  = (angle + 2 * Math.PI) % (2 * Math.PI); // 0..2PI
-  const idx   = Math.floor((norm + Math.PI / 8) / (Math.PI / 4)) % 8;
-  // clockwise from right
-  const keys8 = [
-    "right",      // 0
-    "frontRight", // 1
-    "front",      // 2
-    "frontLeft",  // 3
-    "left",       // 4
-    "backLeft",   // 5
-    "back",       // 6
-    "backRight"   // 7
-  ];
-  return keys8[idx];
+  // Sticky octants: only switch once the angle clearly exits the current
+  // sector, so facing doesn't flap at diagonal boundaries (22.5°) when the
+  // velocity estimate wobbles.
+  let diff = norm - dir8Idx * (Math.PI / 4);
+  if (diff > Math.PI) diff -= 2 * Math.PI;
+  if (diff < -Math.PI) diff += 2 * Math.PI;
+  if (Math.abs(diff) > Math.PI / 8 + DIR8_HYSTERESIS) {
+    dir8Idx = Math.floor((norm + Math.PI / 8) / (Math.PI / 4)) % 8;
+  }
+  return DIR8_KEYS[dir8Idx];
 }
 
 // Map that direction to a row index using the pack's rows table for the given state
@@ -415,6 +426,9 @@ function loop() {
   rafId = requestAnimationFrame(step);
 }
 
+const VEL_SMOOTH_TAU_MS = 60;     // velocity smoothing time constant
+const TELEPORT_SPEED_PXPS = 8000; // instantaneous speed treated as a jump, not motion
+
 function onMouseMove(e) {
   const now = performance.now();
 
@@ -423,11 +437,16 @@ function onMouseMove(e) {
   const vx = (e.clientX - RUNTIME.lastMouse.x) * (1000 / dt); // px/s
   const vy = (e.clientY - RUNTIME.lastMouse.y) * (1000 / dt); // px/s
 
-  // simple smoothing for direction and speed
-  const SMOOTH = 0.2;
-  RUNTIME.velAvg.x = RUNTIME.velAvg.x * (1 - SMOOTH) + vx * SMOOTH;
-  RUNTIME.velAvg.y = RUNTIME.velAvg.y * (1 - SMOOTH) + vy * SMOOTH;
-  RUNTIME.speedAvg = Math.hypot(RUNTIME.velAvg.x, RUNTIME.velAvg.y);
+  // Time-based smoothing so direction/speed behave the same at any event
+  // rate (browsers fire mousemove at 60–1000Hz; the desktop app feeds ~60Hz).
+  // Teleport-sized deltas (tab switches, display hops) are skipped — they
+  // would inject a huge spike into the velocity average and whip the facing.
+  if (Math.hypot(vx, vy) < TELEPORT_SPEED_PXPS) {
+    const SMOOTH = 1 - Math.exp(-dt / VEL_SMOOTH_TAU_MS);
+    RUNTIME.velAvg.x = RUNTIME.velAvg.x * (1 - SMOOTH) + vx * SMOOTH;
+    RUNTIME.velAvg.y = RUNTIME.velAvg.y * (1 - SMOOTH) + vy * SMOOTH;
+    RUNTIME.speedAvg = Math.hypot(RUNTIME.velAvg.x, RUNTIME.velAvg.y);
+  }
 
   RUNTIME.lastMouse.x = e.clientX;
   RUNTIME.lastMouse.y = e.clientY;
