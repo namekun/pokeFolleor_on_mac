@@ -60,6 +60,25 @@
         "left": 0,
         "frontLeft": 0
       }
+    },
+    "attack": {
+      "sheet": "Attack-Anim.webp",
+      "frame": {
+        "w": 88,
+        "h": 112
+      },
+      "fps": 28.7,
+      "frames": 11,
+      "rows": {
+        "front": 0,
+        "frontRight": 1,
+        "right": 2,
+        "backRight": 3,
+        "back": 4,
+        "backLeft": 5,
+        "left": 6,
+        "frontLeft": 7
+      }
     }
   }
 }
