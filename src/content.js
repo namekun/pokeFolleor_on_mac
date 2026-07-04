@@ -313,6 +313,10 @@ function ensureImagesLoaded(meta) {
 function resetAnimationForNewPack() {
   // Start from idle; row will be resolved in tick() via pickRowForState
   RUNTIME.anim = { name: "idle", frame: 0, row: 0, accMs: 0 };
+  // A new pack may not have every state the old one did (e.g. no states.attack)
+  // — restart the wander FSM fresh rather than leaving it stuck expecting an
+  // animation name that no longer exists.
+  WANDER.state = null;
 }
 
 function applyFrame() {
@@ -416,6 +420,12 @@ function enterNap() {
 function enterAttack() {
   WANDER.state = "attack";
   WANDER.attackCyclesLeft = 1 + Math.floor(Math.random() * 2); // 1 or 2 full cycles
+  // Wall-clock backstop alongside the frame-cycle counting in tick(): if that
+  // counting never fires (e.g. the sheet/fps disappear out from under it), this
+  // still forces an exit instead of leaving the FSM stuck on "attack" forever.
+  const st = RUNTIME.meta?.states?.attack;
+  const cycleMs = (st && st.fps) ? (st.frames / st.fps) * 1000 : 1000;
+  WANDER.until = performance.now() + WANDER.attackCyclesLeft * cycleMs + 1000;
   RUNTIME.target.x = RUNTIME.pos.x;
   RUNTIME.target.y = RUNTIME.pos.y;
 }
@@ -440,6 +450,10 @@ function tickWander(now) {
     if (now >= WANDER.until) choosePostPause();
   } else if (WANDER.state === "nap") {
     if (now >= WANDER.until) enterRoam(); // wake up and move on
+  } else if (WANDER.state === "attack") {
+    // Normally the frame-cycle counter in tick() ends attack first; this only
+    // fires if that counting never got a chance to run.
+    if (now >= WANDER.until) enterPause();
   }
 }
 
