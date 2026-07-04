@@ -167,7 +167,7 @@ ipcMain.on("vcp1:message", (e, msg) => {
 });
 const smokePassed = new Set();
 function smokeCheckDone() {
-  if (smokePassed.has("overlay") && smokePassed.has("settings") && smokePassed.has("facing") && smokePassed.has("lang")) {
+  if (smokePassed.has("overlay") && smokePassed.has("settings") && smokePassed.has("facing") && smokePassed.has("lang") && smokePassed.has("wander")) {
     console.log("SMOKE_OK");
     app.exit(0);
   }
@@ -201,6 +201,17 @@ ipcMain.on("vcp1:smoke-lang", (_e, result) => {
     app.exit(1);
   }
 });
+ipcMain.on("vcp1:smoke-wander", (_e, result) => {
+  if (!SMOKE) return;
+  if (result === "ok") {
+    smokePassed.add("wander");
+    console.log("SMOKE_WANDER_OK");
+    smokeCheckDone();
+  } else {
+    console.error(`SMOKE_WANDER_${result}`);
+    app.exit(1);
+  }
+});
 
 app.whenReady().then(() => {
   protocol.handle("poke", async (req) => {
@@ -223,6 +234,9 @@ app.whenReady().then(() => {
   // facing probe's timing assumes default walk speed/offset — reset in case a
   // developer's own settings.json (persisted from manual runs) left different values
   if (SMOKE) { store.sync.vcp1_offset = 30; store.sync.vcp1_lerp = 0.20; }
+  // facing probe requires follow-mode behavior; wander probe switches this on
+  // its own once facing passes — reset in case a prior manual run left it wander
+  if (SMOKE) store.sync.vcp1_mode = "follow";
 
   if (app.dock) app.dock.hide(); // menu-bar utility; no Dock icon
   createTray();
@@ -233,7 +247,9 @@ app.whenReady().then(() => {
   if (!SMOKE) startCursorFeed();
 
   if (SMOKE) {
-    setTimeout(() => { console.error("SMOKE_TIMEOUT"); app.exit(1); }, 20000);
+    // facing (~7.9s) + wander (up to 10s backstop) run back-to-back in the
+    // overlay window, plus settings/lang in parallel — budget generously.
+    setTimeout(() => { console.error("SMOKE_TIMEOUT"); app.exit(1); }, 30000);
   }
 });
 

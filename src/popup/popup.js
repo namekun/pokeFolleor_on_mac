@@ -38,6 +38,27 @@ document.addEventListener("DOMContentLoaded", () => {
   let CUR_LANG = "en";          // "en" | "ko"
   const langEl = document.getElementById("lang");
 
+  // --- Mode toggle (follow the cursor vs. wander the screen autonomously) ---
+  let CUR_MODE = "follow";      // "follow" | "wander"
+  const modeEl = document.getElementById("mode");
+  const MODE_LABELS = {
+    follow: { en: "Follow", ko: "따라오기" },
+    wander: { en: "Wander", ko: "배회하기" }
+  };
+  function updateModeUI() {
+    if (!modeEl) return;
+    for (const btn of Array.from(modeEl.querySelectorAll(".langOpt"))) {
+      btn.setAttribute("aria-pressed", btn.dataset.mode === CUR_MODE ? "true" : "false");
+    }
+  }
+  function applyModeLabels() {
+    if (!modeEl) return;
+    for (const btn of Array.from(modeEl.querySelectorAll(".langOpt"))) {
+      const m = btn.dataset.mode === "wander" ? "wander" : "follow";
+      btn.textContent = MODE_LABELS[m][CUR_LANG] || MODE_LABELS[m].en;
+    }
+  }
+
   // "retro/gen-1/025-pikachu" -> "025" (empty when not derivable)
   function dexKeyFromValue(val) {
     const last = (val || "").split("/").pop() || "";
@@ -85,6 +106,7 @@ document.addEventListener("DOMContentLoaded", () => {
     applyLangToOptions();
     capturePackMeta();
     updateLangUI();
+    applyModeLabels();
   }
   // Best-effort fetch of Korean names; silent English fallback on failure.
   async function loadKoNames() {
@@ -211,12 +233,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Load saved settings
   chrome.storage.sync.get(
-    ["vcp1_enabled", "vcp1_pack", "vcp1_scale", "vcp1_offset", "vcp1_lerp", "vcp1_lang"],
+    ["vcp1_enabled", "vcp1_pack", "vcp1_scale", "vcp1_offset", "vcp1_lerp", "vcp1_lang", "vcp1_mode"],
     (res) => {
       enabledEl.checked = !!res.vcp1_enabled;
       const storedPack  = res.vcp1_pack || DEFAULT_PACK;
       CUR_LANG = (res.vcp1_lang === "ko") ? "ko" : "en";
       updateLangUI();
+      CUR_MODE = (res.vcp1_mode === "wander") ? "wander" : "follow";
+      updateModeUI();
 
       const scale  = (typeof res.vcp1_scale  === "number") ? res.vcp1_scale  : DEFAULTS.vcp1_scale;
       const offset = (typeof res.vcp1_offset === "number") ? res.vcp1_offset : DEFAULTS.vcp1_offset;
@@ -274,6 +298,19 @@ document.addEventListener("DOMContentLoaded", () => {
       if (lang === CUR_LANG) return;
       save({ vcp1_lang: lang });
       applyLang(lang);
+    });
+  }
+
+  // Mode toggle — live-switches content.js via storage.onChanged, no reload
+  if (modeEl) {
+    modeEl.addEventListener("click", (e) => {
+      const btn = e.target.closest(".langOpt");
+      if (!btn) return;
+      const mode = (btn.dataset.mode === "wander") ? "wander" : "follow";
+      if (mode === CUR_MODE) return;
+      CUR_MODE = mode;
+      save({ vcp1_mode: mode });
+      updateModeUI();
     });
   }
 
