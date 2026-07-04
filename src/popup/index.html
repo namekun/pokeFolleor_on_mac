@@ -114,6 +114,18 @@
     /* ON state */
     #enabled:checked { background: #EF4036; }
     #enabled:checked::after { left: calc(100% - 18px); }
+
+    /* Language segment toggle (EN | 한글) */
+    .langRow { display: flex; justify-content: flex-end; padding: 0 14px; margin-top: 2px; }
+    #lang { display: inline-flex; border: 1.5px solid #000; border-radius: 8px; overflow: hidden; }
+    #lang .langOpt {
+      appearance: none; -webkit-appearance: none; border: 0; background: #fff; color: #000;
+      font-weight: 800; font-size: 11px; line-height: 1.5; padding: 2px 10px; cursor: pointer; outline: none;
+    }
+    #lang .langOpt + .langOpt { border-left: 1.5px solid #000; }
+    #lang .langOpt[aria-pressed="true"] { background: #EF4036; color: #fff; }
+    #lang .langOpt:focus-visible { outline: 2px solid #000; outline-offset: -2px; }
+
     /* Card body */
     .card { padding: 10px 16px 0; }
 
@@ -266,6 +278,14 @@
       <span>Enable Follower</span>
       <input id="enabled" type="checkbox" />
     </label>
+  </div>
+
+  <!-- Language toggle -->
+  <div class="langRow">
+    <div id="lang" role="group" aria-label="Language">
+      <button type="button" class="langOpt" data-lang="en" aria-pressed="true">EN</button>
+      <button type="button" class="langOpt" data-lang="ko" aria-pressed="false">한글</button>
+    </div>
   </div>
 
   <div class="card">

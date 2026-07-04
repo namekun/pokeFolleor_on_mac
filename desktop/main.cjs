@@ -167,7 +167,7 @@ ipcMain.on("vcp1:message", (e, msg) => {
 });
 const smokePassed = new Set();
 function smokeCheckDone() {
-  if (smokePassed.has("overlay") && smokePassed.has("settings") && smokePassed.has("facing")) {
+  if (smokePassed.has("overlay") && smokePassed.has("settings") && smokePassed.has("facing") && smokePassed.has("lang")) {
     console.log("SMOKE_OK");
     app.exit(0);
   }
@@ -190,6 +190,17 @@ ipcMain.on("vcp1:smoke-facing", (_e, result) => {
     app.exit(1);
   }
 });
+ipcMain.on("vcp1:smoke-lang", (_e, result) => {
+  if (!SMOKE) return;
+  if (result === "ok") {
+    smokePassed.add("lang");
+    console.log("SMOKE_LANG_OK");
+    smokeCheckDone();
+  } else {
+    console.error(`SMOKE_LANG_${result}`);
+    app.exit(1);
+  }
+});
 
 app.whenReady().then(() => {
   protocol.handle("poke", async (req) => {
@@ -208,6 +219,7 @@ app.whenReady().then(() => {
   loadStore();
   if (store.sync.vcp1_enabled === undefined || SMOKE) store.sync.vcp1_enabled = true;
   if (SMOKE) store.sync.vcp1_pack = "retro/gen-1/009-blastoise"; // facing probe expects this pack's row layout
+  if (SMOKE) store.sync.vcp1_lang = "en"; // lang probe must start from English so its switch to Korean is real
 
   if (app.dock) app.dock.hide(); // menu-bar utility; no Dock icon
   createTray();

@@ -32,6 +32,73 @@ document.addEventListener("DOMContentLoaded", () => {
     const n = parseInt(last, 10);
     return Number.isFinite(n) ? n : 9999;
   }
+
+  // --- Localization (English default, optional Korean names) ---
+  const KO_NAMES = {};          // { "001": "이상해씨", ... } keyed by 3-digit dex
+  let CUR_LANG = "en";          // "en" | "ko"
+  const langEl = document.getElementById("lang");
+
+  // "retro/gen-1/025-pikachu" -> "025" (empty when not derivable)
+  function dexKeyFromValue(val) {
+    const last = (val || "").split("/").pop() || "";
+    const dash = last.indexOf("-");
+    const numStr = dash >= 0 ? last.slice(0, dash) : last;
+    const n = parseInt(numStr, 10);
+    return Number.isFinite(n) ? String(n).padStart(3, "0") : "";
+  }
+  function koNameForValue(val) {
+    const key = dexKeyFromValue(val);
+    return key && KO_NAMES[key] ? KO_NAMES[key] : null;
+  }
+  // English label an option was built with (survives Korean relabeling)
+  function enLabelForOption(opt) {
+    return (opt && (opt.dataset.enLabel || formatPackLabel(opt.value))) || "";
+  }
+  // Display label for the current language: "025-피카츄" in ko, else English
+  function labelForOption(opt) {
+    const enLabel = enLabelForOption(opt);
+    if (CUR_LANG === "ko") {
+      const ko = koNameForValue(opt.value);
+      if (ko) {
+        const key = dexKeyFromValue(opt.value);
+        return key ? `${key}-${ko}` : ko;
+      }
+    }
+    return enLabel;
+  }
+  function applyLangToOptions() {
+    if (!packEl) return;
+    for (const opt of Array.from(packEl.options)) {
+      opt.textContent = labelForOption(opt);
+    }
+  }
+  function updateLangUI() {
+    if (!langEl) return;
+    for (const btn of Array.from(langEl.querySelectorAll(".langOpt"))) {
+      btn.setAttribute("aria-pressed", btn.dataset.lang === CUR_LANG ? "true" : "false");
+    }
+  }
+  // Switch language: relabel options, rebuild search meta/datalist, reflect UI.
+  // Selection (packEl.value) is untouched.
+  function applyLang(lang) {
+    CUR_LANG = (lang === "ko") ? "ko" : "en";
+    applyLangToOptions();
+    capturePackMeta();
+    updateLangUI();
+  }
+  // Best-effort fetch of Korean names; silent English fallback on failure.
+  async function loadKoNames() {
+    try {
+      const url = chrome.runtime.getURL("assets/packs/names-ko.json");
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("names-ko.json not found");
+      const data = await res.json();
+      if (data && typeof data === "object") Object.assign(KO_NAMES, data);
+    } catch (e) {
+      console.warn("PokeFollower: Korean names unavailable, using English", e);
+    }
+  }
+
   const PACK_META = [];
   function normalizePackOptions() {
     if (!packEl) return;
@@ -45,7 +112,8 @@ document.addEventListener("DOMContentLoaded", () => {
     for (const o of opts) {
       const opt = document.createElement("option");
       opt.value = o.value;
-      opt.textContent = formatPackLabel(o.value);
+      opt.dataset.enLabel = formatPackLabel(o.value);
+      opt.textContent = labelForOption(opt);
       packEl.appendChild(opt);
     }
     // restore selection if possible
@@ -68,7 +136,8 @@ document.addEventListener("DOMContentLoaded", () => {
       for (const item of list) {
         const opt = document.createElement('option');
         opt.value = item.id;                       // e.g., "retro/gen-1/009-blastoise"
-        opt.textContent = item.name || formatPackLabel(item.id);
+        opt.dataset.enLabel = item.name || formatPackLabel(item.id);
+        opt.textContent = labelForOption(opt);
         packEl.appendChild(opt);
       }
       capturePackMeta();
@@ -142,10 +211,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Load saved settings
   chrome.storage.sync.get(
-    ["vcp1_enabled", "vcp1_pack", "vcp1_scale", "vcp1_offset", "vcp1_lerp"],
+    ["vcp1_enabled", "vcp1_pack", "vcp1_scale", "vcp1_offset", "vcp1_lerp", "vcp1_lang"],
     (res) => {
       enabledEl.checked = !!res.vcp1_enabled;
       const storedPack  = res.vcp1_pack || DEFAULT_PACK;
+      CUR_LANG = (res.vcp1_lang === "ko") ? "ko" : "en";
+      updateLangUI();
 
       const scale  = (typeof res.vcp1_scale  === "number") ? res.vcp1_scale  : DEFAULTS.vcp1_scale;
       const offset = (typeof res.vcp1_offset === "number") ? res.vcp1_offset : DEFAULTS.vcp1_offset;
@@ -164,6 +235,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Prefer dynamic index.json; fallback to static options then normalize labels/order
       (async () => {
+        await loadKoNames();
         const ok = await populatePacksFromIndex(storedPack);
         if (!ok) {
           // Use whatever is in HTML, but fix labels/order
@@ -171,6 +243,8 @@ document.addEventListener("DOMContentLoaded", () => {
           packEl.value = storedPack;
           if (packEl.selectedIndex === -1 && packEl.options.length) packEl.selectedIndex = 0;
         }
+        // Final word on option labels + search meta for the active language
+        applyLang(CUR_LANG);
         setPreviewForPack(packEl.value);
       })();
     }
@@ -190,6 +264,18 @@ document.addEventListener("DOMContentLoaded", () => {
     save({ vcp1_pack: packEl.value });
     setPreviewForPack(packEl.value);
   });
+
+  // Language toggle — relabel options/datalist/search meta, keep pack selection
+  if (langEl) {
+    langEl.addEventListener("click", (e) => {
+      const btn = e.target.closest(".langOpt");
+      if (!btn) return;
+      const lang = (btn.dataset.lang === "ko") ? "ko" : "en";
+      if (lang === CUR_LANG) return;
+      save({ vcp1_lang: lang });
+      applyLang(lang);
+    });
+  }
 
   if (shuffleBtn) {
     shuffleBtn.addEventListener("click", () => {
@@ -321,7 +407,8 @@ document.addEventListener("DOMContentLoaded", () => {
     return (str || "").toLowerCase();
   }
   function compactSearch(str) {
-    return normalizeSearch(str).replace(/[^a-z0-9]/g, "");
+    // Keep Hangul syllables so Korean names survive compaction; English unaffected.
+    return normalizeSearch(str).replace(/[^a-z0-9가-힣]/g, "");
   }
 
   function rebuildSearchSuggestions() {
@@ -348,32 +435,40 @@ document.addEventListener("DOMContentLoaded", () => {
     const opts = Array.from(packEl.options);
     for (const opt of opts) {
       const id = opt.value;
-      const label = opt.textContent || formatPackLabel(id);
+      const label = opt.textContent || formatPackLabel(id);   // current-language display label
       const dex = dexFromValue(id);
       const dexStr = Number.isFinite(dex) ? String(dex).padStart(3, "0") : "";
       const formatted = formatPackLabel(id);
-      const labelTrimmed = (label || "").replace(/^\s*\d+\s*[-#]?\s*/, "").replace(/\s*\(#\d+\)\s*$/, "").trim();
-      const fallbackName = (formatted || "").replace(/^\s*\d+\s*[-#]?\s*/, "").trim();
-      const name = labelTrimmed || fallbackName || label || id;
-      const lowerName = normalizeSearch(name);
-      const lowerLabel = normalizeSearch(label);
-      const lowerId = normalizeSearch(id);
-      const compactName = compactSearch(name);
-      const compactLabel = compactSearch(label);
-      const compactId = compactSearch(id);
-      const display = dexStr ? `#${dexStr} ${name}` : name;
+      // English name derived from the option's English label (never the visible
+      // label) so English search keeps working while displaying Korean.
+      const enLabel = enLabelForOption(opt);
+      const enTrimmed = (enLabel || "").replace(/^\s*\d+\s*[-#]?\s*/, "").replace(/\s*\(#\d+\)\s*$/, "").trim();
+      const enFallback = (formatted || "").replace(/^\s*\d+\s*[-#]?\s*/, "").trim();
+      const name = enTrimmed || enFallback || enLabel || id;   // English name
+      const koName = koNameForValue(id);                       // Korean name or null
+      const curName = (CUR_LANG === "ko" && koName) ? koName : name;
+      const display = dexStr ? `#${dexStr} ${curName}` : curName;
+      // Search values are language-independent by construction: English forms are
+      // always present, Korean forms added whenever a Korean name exists.
       const values = new Set([
-        lowerName,
-        compactName,
-        lowerLabel,
-        compactLabel,
-        lowerId,
-        compactId
+        normalizeSearch(name),
+        compactSearch(name),
+        normalizeSearch(enLabel),
+        compactSearch(enLabel),
+        normalizeSearch(id),
+        compactSearch(id)
       ]);
       if (formatted) {
         values.add(normalizeSearch(formatted));
         values.add(compactSearch(formatted));
       }
+      if (koName) {
+        values.add(normalizeSearch(koName));   // 원형
+        values.add(compactSearch(koName));     // 공백제거형
+      }
+      const enDisplay = dexStr ? `#${dexStr} ${name}` : name;
+      values.add(normalizeSearch(enDisplay));
+      values.add(compactSearch(enDisplay));
       if (display) {
         values.add(normalizeSearch(display));
         values.add(compactSearch(display));

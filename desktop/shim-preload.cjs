@@ -71,6 +71,7 @@ if (new URLSearchParams(window.location.search).has("smoke")) {
       if (pack && pack.options.length > 2) {
         clearInterval(timer);
         ipcRenderer.send("vcp1:smoke-ok", "settings");
+        smokeLangProbe();
       }
     } else {
       const el = document.getElementById("__vcp1_follower");
@@ -81,6 +82,31 @@ if (new URLSearchParams(window.location.search).has("smoke")) {
       }
     }
   }, 200);
+}
+
+// Switch the settings popup to Korean through the real user path — a click on
+// the "한글" language button — then confirm the pack list actually relabels to
+// Hangul. Poll up to 3s because relabeling waits on the Korean names fetch.
+function smokeLangProbe() {
+  const HANGUL = /[가-힣]/;
+  const pack = document.getElementById("pack");
+  const koBtn = document.querySelector('#lang .langOpt[data-lang="ko"]');
+  if (!pack || !koBtn) {
+    ipcRenderer.send("vcp1:smoke-lang", "fail:no-control");
+    return;
+  }
+  koBtn.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  const deadline = Date.now() + 3000;
+  const poll = setInterval(() => {
+    const labels = Array.from(pack.options).map((o) => o.textContent || "");
+    if (labels.some((t) => HANGUL.test(t))) {
+      clearInterval(poll);
+      ipcRenderer.send("vcp1:smoke-lang", "ok");
+    } else if (Date.now() > deadline) {
+      clearInterval(poll);
+      ipcRenderer.send("vcp1:smoke-lang", `fail:${labels[0] || ""}`);
+    }
+  }, 100);
 }
 
 // Drive a steady upward cursor motion and check the sprite actually uses the

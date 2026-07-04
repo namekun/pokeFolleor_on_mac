@@ -7,10 +7,12 @@
   "scripts": {
     "parse": "node src/scripts/parse-anim.cjs",
     "build:index": "node src/scripts/build-pack-index.cjs",
+    "build:ko-names": "node src/scripts/build-ko-names.cjs",
     "sync-version": "node src/scripts/sync-version.cjs",
     "app": "electron .",
     "app:smoke": "electron . --smoke",
-    "dist": "electron-builder --mac"
+    "dist": "electron-builder --mac",
+    "setup:mac": "bash scripts/setup-mac.sh"
   },
   "devDependencies": {
     "electron": "^33.0.0",
