@@ -27,7 +27,7 @@
     "mac": {
       "category": "public.app-category.entertainment",
       "target": "dir",
-      "icon": "src/assets/icons/pokeball-128.png",
+      "icon": "desktop/icon.png",
       "extendInfo": {
         "LSUIElement": true
       }
