@@ -60,6 +60,18 @@ ipcRenderer.on("vcp1:cursor", (_e, { x, y }) => {
   window.dispatchEvent(new MouseEvent("mousemove", { clientX: x, clientY: y }));
 });
 
+// On macOS, a click-through (setIgnoreMouseEvents) BrowserWindow can still
+// receive genuine native "mousemove" events whenever the real system cursor
+// passes over it, even though clicks/hover otherwise fall through to
+// whatever's beneath. The overlay's actual cursor signal always arrives via
+// the synthetic (untrusted) redispatch above, so a trusted mousemove here
+// would be a second, uncoordinated position source — drop it before
+// content.js's own listener (registered later, once the page script loads)
+// ever sees it.
+window.addEventListener("mousemove", (e) => {
+  if (e.isTrusted) e.stopImmediatePropagation();
+}, true);
+
 // --smoke: report once each window's UI is actually up — the overlay when the
 // follower element is animating a sprite sheet, the settings popup when the
 // pack list has been populated from index.json.
@@ -110,17 +122,38 @@ function smokeLangProbe() {
 }
 
 // Drive a steady upward cursor motion and check the sprite actually uses the
-// "back" row (default pack: row 4, 40px frames → background-position-y -160px).
+// "back" row (default pack: row 4, 40px frames → background-position-y -160px),
+// then stop feeding and confirm it settles back to "front" (row 0 → "0px")
+// once velAvg decays and the follower arrives at its perch. Only one final
+// result is sent — main.cjs gates on a single "facing" outcome.
 function smokeFacingProbe() {
-  let y = 800;
-  const feed = setInterval(() => {
-    y -= 8;
-    window.dispatchEvent(new MouseEvent("mousemove", { clientX: 600, clientY: y }));
-  }, 16);
+  // Prime: the follower starts wherever it booted (e.g. 0,0, well off-screen
+  // from our test point), and facing while walking now tracks the actual
+  // pos→target travel vector. Measuring immediately would catch it mid
+  // catch-up toward (600,800) — a real but unrelated direction — so park the
+  // cursor there first and let it arrive before starting the timed up-feed.
+  window.dispatchEvent(new MouseEvent("mousemove", { clientX: 600, clientY: 800 }));
   setTimeout(() => {
-    clearInterval(feed);
-    const el = document.getElementById("__vcp1_follower");
-    const posY = el ? (el.style.backgroundPosition.split(" ")[1] || "") : "";
-    ipcRenderer.send("vcp1:smoke-facing", posY === "-160px" ? "ok" : `fail:${posY}`);
-  }, 900);
+    let y = 800;
+    const feed = setInterval(() => {
+      y -= 8;
+      window.dispatchEvent(new MouseEvent("mousemove", { clientX: 600, clientY: y }));
+    }, 16);
+    setTimeout(() => {
+      clearInterval(feed);
+      const el = document.getElementById("__vcp1_follower");
+      const posY = el ? (el.style.backgroundPosition.split(" ")[1] || "") : "";
+      if (posY !== "-160px") {
+        ipcRenderer.send("vcp1:smoke-facing", `fail:back:${posY}`);
+        return;
+      }
+      // Feed stopped; wait for velAvg decay + arrival at the idle perch, then
+      // confirm the sprite faces front again instead of staying frozen on back.
+      setTimeout(() => {
+        const el2 = document.getElementById("__vcp1_follower");
+        const posY2 = el2 ? (el2.style.backgroundPosition.split(" ")[1] || "") : "";
+        ipcRenderer.send("vcp1:smoke-facing", posY2 === "0px" ? "ok" : `fail:front:${posY2}`);
+      }, 2500);
+    }, 900);
+  }, 4500);
 }
