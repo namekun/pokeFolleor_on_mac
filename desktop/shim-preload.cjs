@@ -49,10 +49,38 @@ ipcRenderer.on("vcp1:message", (_e, msg) => {
   }
 });
 
-// Overlay only: turn main-process cursor positions into the mousemove events
-// content.js already listens for.
+// Overlay only: turn main-process cursor samples into the mousemove events
+// content.js already listens for. Raw 60Hz polls are too sparse/jittery for
+// content.js's velocity smoothing (built for near-continuous browser events),
+// which made the 8-way facing flap at diagonal octant boundaries — so
+// interpolate samples with rAF into a dense, smooth event stream, and only
+// dispatch while actually moving (otherwise the sleep state never triggers).
+const cursor = { target: null, pos: null, looping: false };
+
+function cursorLoop() {
+  const { target, pos } = cursor;
+  const dx = target.x - pos.x;
+  const dy = target.y - pos.y;
+  if (Math.hypot(dx, dy) > 200) {
+    // display hop / teleport: snap instead of streaking across the screen
+    pos.x = target.x;
+    pos.y = target.y;
+    window.dispatchEvent(new MouseEvent("mousemove", { clientX: pos.x, clientY: pos.y }));
+  } else if (Math.hypot(dx, dy) > 0.5) {
+    pos.x += dx * 0.5;
+    pos.y += dy * 0.5;
+    window.dispatchEvent(new MouseEvent("mousemove", { clientX: pos.x, clientY: pos.y }));
+  }
+  requestAnimationFrame(cursorLoop);
+}
+
 ipcRenderer.on("vcp1:cursor", (_e, { x, y }) => {
-  window.dispatchEvent(new MouseEvent("mousemove", { clientX: x, clientY: y }));
+  cursor.target = { x, y };
+  if (!cursor.pos) cursor.pos = { x, y };
+  if (!cursor.looping) {
+    cursor.looping = true;
+    requestAnimationFrame(cursorLoop);
+  }
 });
 
 // --smoke: report once each window's UI is actually up — the overlay when the
