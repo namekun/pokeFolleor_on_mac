@@ -8,3 +8,6 @@ npm-debug.log*
 yarn.lock
 pnpm-lock.yaml
 CLAUDE.md
+
+# Electron build output
+dist/

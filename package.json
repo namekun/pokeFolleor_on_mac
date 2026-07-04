@@ -3,9 +3,36 @@
   "version": "4.0.0",
   "description": "Chrome plugin that follows your cursor with Pokémon sprites",
   "type": "module",
+  "main": "desktop/main.cjs",
   "scripts": {
     "parse": "node src/scripts/parse-anim.cjs",
     "build:index": "node src/scripts/build-pack-index.cjs",
-    "sync-version": "node src/scripts/sync-version.cjs"
+    "build:ko-names": "node src/scripts/build-ko-names.cjs",
+    "sync-version": "node src/scripts/sync-version.cjs",
+    "app": "electron .",
+    "app:smoke": "electron . --smoke",
+    "dist": "electron-builder --mac",
+    "setup:mac": "bash scripts/setup-mac.sh"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "dev.namekun.pokefollower",
+    "productName": "PokeFollower",
+    "files": [
+      "desktop/**/*",
+      "src/**/*",
+      "!src/scripts/**"
+    ],
+    "mac": {
+      "category": "public.app-category.entertainment",
+      "target": "dir",
+      "icon": "desktop/icon.png",
+      "extendInfo": {
+        "LSUIElement": true
+      }
+    }
   }
 }

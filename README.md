@@ -1,68 +1,164 @@
 # PokéFollower
 
-A browser extension that brings a little nostalgic joy to your browsing experience
-with retro 2D Pokemon sprites that follow your cursor around the web.
+> 🇰🇷 한국어: [README.ko.md](README.ko.md) &nbsp;·&nbsp; 🇺🇸 English: README.md
+
+A little nostalgic companion for your screen: a retro 2D Pokémon sprite that
+follows your cursor around, idling, walking, and facing whichever way you move.
+
+This is a fork of [ThinkrDoer/pokefollower_cursor_web_plugin](https://github.com/ThinkrDoer/pokefollower_cursor_web_plugin),
+originally created by **Ali Hamad**. The original is a Chrome extension that adds
+the follower to web pages. This fork keeps that extension and adds a native
+**macOS desktop app** so the same Pokémon can follow your cursor across your
+whole desktop — over every app, not just the browser.
 
 ---
 
-<div style="border: 1px solid #7F77DD; border-radius: 8px; padding: 16px 20px; margin-bottom: 24px;">
+## macOS Desktop App
 
-## Recent Updates
+The desktop app is an Electron wrapper around the extension's sprite engine. A
+transparent, click-through overlay sits above your other windows, and the
+extension's settings popup is reused as-is for a native Settings window.
 
-> **Last updated:** June 11, 2025
+### Quick start
 
-### What's new
+One command installs dependencies, repairs the Electron binary if its integrity
+check fails, runs the smoke test, builds the app, installs it to `/Applications`,
+and launches it:
 
-- **Gen 4 added**: Sinnoh Pokemon are now available as followers.
-- **Smoother cycling**: Transitions between Pokemon have been improved for a more fluid experience.
-- **Natural following behavior**: Fixed the rigid "on a leash" movement; your Pokemon now follows more organically.
+```bash
+npm run setup:mac
+```
 
-### Upcoming milestones
+### Manual steps
 
-| Installs | Reward |
-|----------|--------|
-| 100,000 | Will add Gen 5 (Unova) + ***SHINIES!!!*** |
+If you'd rather run each step yourself:
 
-</div>
+```bash
+npm install        # install dependencies
+npm run app        # run the app in development (Electron)
+npm run dist       # build a standalone .app (unsigned)
+```
+
+`npm run dist` outputs an unsigned `PokeFollower.app` under `dist/`.
+
+### Using it
+
+The app has no Dock icon — it lives in the menu bar as a Pokéball. From the tray
+menu you can:
+
+- **Enable / Disable** the follower
+- Open **Settings…**
+- **Quit**
+
+Once enabled, the sprite:
+
+- rides on a **click-through overlay** that never steals focus, so it floats over
+  your work without getting in the way,
+- **follows your cursor across displays**, hopping to whichever monitor the cursor
+  is on,
+- and **falls asleep after ~30 seconds** of no cursor movement, waking up when you
+  move again (for packs that include a sleep animation).
+
+### Settings window
+
+Opening **Settings…** shows the same UI as the browser extension popup:
+
+- **Pick a Pokémon** — select from the list, **search** by name or Pokédex number,
+  or **shuffle** for a random one.
+- **SCALE** — how large the sprite is drawn.
+- **DISTANCE** — how far it perches from the cursor.
+- **SPEED** — how quickly it catches up as you move.
+- **Language (EN / 한글)** — show Pokémon names and search suggestions in
+  **Korean** (new in this fork).
+
+Settings are stored at:
+
+```
+~/Library/Application Support/pokefollower_cursor_web_plugin/settings.json
+```
+
+### First launch (unsigned app)
+
+The built app is not code-signed, so on first launch macOS Gatekeeper will refuse
+to open it directly. To get past this once:
+
+1. In Finder, **right-click** (or Control-click) `PokeFollower.app`.
+2. Choose **Open**.
+3. Confirm **Open** in the dialog.
+
+After that first time, it opens normally.
 
 ---
 
-## About
+## Chrome Extension
 
-PokéFollower started as a personal experiment to recapture that warm, playful feeling
-of having a companion by your side while you work and browse. Whether you're tackling
-a project, scrolling through social media, or just need a small friend to keep you
-company, PokéFollower is here to make your screen time a bit more fun.
+To run the original extension in Chrome (or any Chromium browser):
 
-It was my girlfriend's idea, after I mentioned I wanted to build a plugin.
+1. Go to `chrome://extensions`.
+2. Turn on **Developer mode** (top right).
+3. Click **Load unpacked** and select the `src/` folder.
 
----
-
-## About Me
-
-My name is **Ali**. I am trying to build more things, and this plugin was one of my
-first accomplishments in learning how to do so.
+The follower then appears on web pages, with the same settings popup as the
+desktop app.
 
 ---
 
-## Your Feedback Matters
+## Development
 
-This extension is still evolving, and your input helps shape what comes next. Whether
-you've found a bug, have a feature idea, or just want to share your experience, I'd
-love to hear from you.
+The desktop app deliberately **reuses the extension's `src/` code unmodified**.
+A thin Electron layer stands in for the parts of Chrome the extension expects:
+
+- **`desktop/main.cjs`** — the Electron wrapper: creates the transparent
+  overlay window, feeds it the cursor position (~60 Hz, in window-local coords),
+  hops the overlay between displays, builds the tray menu, and opens the Settings
+  window.
+- **`desktop/shim-preload.cjs`** — a small `chrome.*` shim. It implements
+  `chrome.storage.sync/local` (`get`/`set`/`onChanged`) and
+  `chrome.runtime` (`getURL`/`sendMessage`/`onMessage`/`id`) over Electron IPC, so
+  `src/popup` and `src/content.js` run without any changes.
+- **`poke://` protocol** — repo files are served over a custom `poke://app/<path>`
+  scheme so `fetch()` works for pack JSON and assets (the `file://` scheme blocks
+  fetch).
+- **`src/`** — the shared sprite engine (`content.js`) and settings popup
+  (`popup/`), used identically by the extension and the desktop app.
+
+### Smoke test
+
+```bash
+npm run app:smoke
+```
+
+The smoke test boots the app headlessly and verifies the core paths end to end:
+
+- the **overlay sprite** loads and renders,
+- the **Settings window** loads and reads a pack,
+- **8-way facing** resolves correctly, and
+- the **language switch** (EN / 한글) works.
+
+On success it prints `SMOKE_OK` and exits `0`.
+
+### Korean names
+
+```bash
+npm run build:ko-names
+```
+
+This regenerates `src/assets/packs/names-ko.json`, the lookup of Korean Pokémon
+names (keyed by Pokédex number) used by the language switch. It fetches names from
+PokéAPI based on `src/assets/packs/index.json`.
 
 ---
 
-## What's Next
+## Credits & License
 
-I'm working on adding more Pokemon generations, potentially new behaviors like attacks
-or sitting, and emotes. If you have ideas or requests, let me know.
+- **Code** — MIT License, © Ali Hamad and contributors. See
+  [CREDITS.txt](CREDITS.txt).
+- **Sprites** — from the [PMD Sprite Collab](https://sprites.pmdcollab.org)
+  community, used under **Creative Commons BY-NC-SA 4.0**. Non-commercial use only.
+- **Pokémon** — Pokémon and all related names and imagery are the intellectual
+  property of **Nintendo / Game Freak / The Pokémon Company**.
 
-Thanks for being part of this journey. Happy browsing, and may your Pokemon companion
-bring you good vibes.
+This project is a fan-made, **personal and non-commercial** work. It is not
+affiliated with or endorsed by Nintendo, Game Freak, or The Pokémon Company.
 
----
-
-## Privacy Policy
-
-[PokéFollower Privacy Policy](https://github.com/user-attachments/files/25349405/Pokefollower.Privacy.Policy.pdf)
+Full attributions are in [CREDITS.txt](CREDITS.txt).
