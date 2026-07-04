@@ -5,7 +5,8 @@ const GENERATION_DIRS = ["gen-1","gen-2","gen-3","gen-4","gen-5","gen-6","gen-7"
 const STATE = {
   enabled: false,
   pack: DEFAULT_PACK,  // default
-  facingLeft: false
+  facingLeft: false,
+  mode: "follow"       // "follow" | "wander"
 };
 
 let followerEl = null;
@@ -27,6 +28,14 @@ const RUNTIME = {
   pendingState: null,             // { name, queuedAt } — deferred state switch
   velAvg:    { x: 0, y: 0 },
   speedAvg:  0
+};
+
+// --- wander mode: autonomous roam/pause/nap/attack FSM (mode === "wander") ---
+const WANDER = {
+  state: null,                 // "roam" | "pause" | "nap" | "attack" (null = not yet started)
+  until: 0,                    // performance.now() deadline for timed states (pause/nap)
+  attackCyclesLeft: 0,
+  lastDir: { x: 0, y: 0 }       // last travel vector; keeps facing during stationary states
 };
 
 // --- behavior thresholds ---
@@ -161,7 +170,12 @@ function pickRowForState(stateName, dx, dy) {
   // what's visibly happening on screen (cursor velocity can go stale the
   // moment the cursor stops, while the follower is still catching up).
   // At rest (idle/sleep) there's no travel direction, so always show front.
-  const dir8 = stateName === "walk" ? pickDir8FromVector(dx, dy) : "front";
+  // "attack" (wander mode only) plays in place — target is pinned to pos, so
+  // dx/dy read ~0 — so face whichever direction it was last moving instead.
+  let dir8;
+  if (stateName === "walk") dir8 = pickDir8FromVector(dx, dy);
+  else if (stateName === "attack") dir8 = pickDir8FromVector(WANDER.lastDir.x, WANDER.lastDir.y);
+  else dir8 = "front";
   if (dir8 in rows) return rows[dir8];
 
   // Map diagonal to nearest cardinal if diagonal key missing
@@ -299,6 +313,10 @@ function ensureImagesLoaded(meta) {
 function resetAnimationForNewPack() {
   // Start from idle; row will be resolved in tick() via pickRowForState
   RUNTIME.anim = { name: "idle", frame: 0, row: 0, accMs: 0 };
+  // A new pack may not have every state the old one did (e.g. no states.attack)
+  // — restart the wander FSM fresh rather than leaving it stuck expecting an
+  // animation name that no longer exists.
+  WANDER.state = null;
 }
 
 function applyFrame() {
@@ -345,31 +363,149 @@ function pickStateBySpeed() {
   return RUNTIME.isWalking ? "walk" : "idle";
 }
 
+// --- wander mode: autonomous roam/pause/nap/attack FSM ---
+// Viewport-only (window.innerWidth/Height), so it behaves identically in the
+// browser extension and the fullscreen desktop overlay.
+const WANDER_MARGIN_EXTRA = 20;                 // px, added to sprite size for edge clearance
+const ROAM_PAUSE_MIN_MS = 2000, ROAM_PAUSE_MAX_MS = 8000;
+const NAP_MIN_MS = 6000, NAP_MAX_MS = 15000;
+const ATTACK_CHANCE = 0.15; // only rolled when the pack has a states.attack sheet
+const NAP_CHANCE    = 0.10; // only rolled when the pack has a states.sleep sheet
+
+function randRange(min, max) { return min + Math.random() * (max - min); }
+
+function getSpriteMargin() {
+  const st = RUNTIME.meta?.states?.walk;
+  const w = st?.frame?.w || 40;
+  const h = st?.frame?.h || 40;
+  return Math.max(w, h) * CONFIG.scale + WANDER_MARGIN_EXTRA;
+}
+
+function clampToViewport(pt) {
+  const margin = getSpriteMargin();
+  const maxX = Math.max(margin, window.innerWidth - margin);
+  const maxY = Math.max(margin, window.innerHeight - margin);
+  pt.x = Math.min(Math.max(pt.x, margin), maxX);
+  pt.y = Math.min(Math.max(pt.y, margin), maxY);
+}
+
+function pickRoamWaypoint() {
+  const margin = getSpriteMargin();
+  const maxX = Math.max(margin, window.innerWidth - margin);
+  const maxY = Math.max(margin, window.innerHeight - margin);
+  return { x: randRange(margin, maxX), y: randRange(margin, maxY) };
+}
+
+function enterRoam() {
+  WANDER.state = "roam";
+  const wp = pickRoamWaypoint();
+  RUNTIME.target.x = wp.x;
+  RUNTIME.target.y = wp.y;
+}
+
+function enterPause() {
+  WANDER.state = "pause";
+  WANDER.until = performance.now() + randRange(ROAM_PAUSE_MIN_MS, ROAM_PAUSE_MAX_MS);
+  RUNTIME.target.x = RUNTIME.pos.x; // stand still — no drift while paused
+  RUNTIME.target.y = RUNTIME.pos.y;
+}
+
+function enterNap() {
+  WANDER.state = "nap";
+  WANDER.until = performance.now() + randRange(NAP_MIN_MS, NAP_MAX_MS);
+  RUNTIME.target.x = RUNTIME.pos.x;
+  RUNTIME.target.y = RUNTIME.pos.y;
+}
+
+function enterAttack() {
+  WANDER.state = "attack";
+  WANDER.attackCyclesLeft = 1 + Math.floor(Math.random() * 2); // 1 or 2 full cycles
+  // Wall-clock backstop alongside the frame-cycle counting in tick(): if that
+  // counting never fires (e.g. the sheet/fps disappear out from under it), this
+  // still forces an exit instead of leaving the FSM stuck on "attack" forever.
+  const st = RUNTIME.meta?.states?.attack;
+  const cycleMs = (st && st.fps) ? (st.frames / st.fps) * 1000 : 1000;
+  WANDER.until = performance.now() + WANDER.attackCyclesLeft * cycleMs + 1000;
+  RUNTIME.target.x = RUNTIME.pos.x;
+  RUNTIME.target.y = RUNTIME.pos.y;
+}
+
+// Decide what happens once a PAUSE's idle timer runs out. Each branch is its
+// own independent roll (gated on the pack actually having that sheet), so if
+// a pack has no attack/sleep sheet those odds simply fall through to roam.
+function choosePostPause() {
+  if (hasState("attack") && Math.random() < ATTACK_CHANCE) { enterAttack(); return; }
+  if (hasState("sleep") && Math.random() < NAP_CHANCE) { enterNap(); return; }
+  enterRoam();
+}
+
+// Advance the FSM's own timers/arrivals. "attack" is advanced separately, by
+// frame-cycle counting in tick()'s animation stepper below (it needs to count
+// sprite-sheet loops, not wall-clock time).
+function tickWander(now) {
+  if (!WANDER.state) { enterRoam(); return; }
+  if (WANDER.state === "roam") {
+    if (!RUNTIME.isWalking) enterPause(); // arrived at the waypoint last frame
+  } else if (WANDER.state === "pause") {
+    if (now >= WANDER.until) choosePostPause();
+  } else if (WANDER.state === "nap") {
+    if (now >= WANDER.until) enterRoam(); // wake up and move on
+  } else if (WANDER.state === "attack") {
+    // Normally the frame-cycle counter in tick() ends attack first; this only
+    // fires if that counting never got a chance to run.
+    if (now >= WANDER.until) enterPause();
+  }
+}
+
+function wanderDesiredState() {
+  switch (WANDER.state) {
+    case "roam":   return RUNTIME.isWalking ? "walk" : "idle";
+    case "nap":    return hasState("sleep") ? "sleep" : "idle";
+    case "attack": return hasState("attack") ? "attack" : "idle";
+    case "pause":
+    default:       return "idle";
+  }
+}
+
+// Keep the roam waypoint (and the follower itself, if it's standing still in
+// pause/nap/attack) inside a viewport that just got resized.
+function onViewportResize() {
+  if (STATE.mode !== "wander") return;
+  clampToViewport(RUNTIME.pos);
+  clampToViewport(RUNTIME.target);
+}
+window.addEventListener("resize", onViewportResize, { passive: true });
+
 function tick(dtMs) {
   const now = performance.now();
 
-  // Once mousemove events stop arriving (cursor idle, or the desktop app's
-  // 60Hz feed pauses), velAvg would otherwise stay frozen on the last sampled
-  // direction forever. Decay it back toward zero so computeTarget's hasDir
-  // check naturally drops out (ending the perch-drift) — facing itself no
-  // longer reads velAvg (see pickRowForState), so this only affects offset.
-  if (now - RUNTIME.lastMoveTs > VEL_DECAY_DELAY_MS) {
-    const decay = Math.exp(-dtMs / VEL_DECAY_TAU_MS);
-    RUNTIME.velAvg.x *= decay;
-    RUNTIME.velAvg.y *= decay;
-    RUNTIME.speedAvg = Math.hypot(RUNTIME.velAvg.x, RUNTIME.velAvg.y);
+  if (STATE.mode === "wander") {
+    tickWander(now);
+  } else {
+    // Once mousemove events stop arriving (cursor idle, or the desktop app's
+    // 60Hz feed pauses), velAvg would otherwise stay frozen on the last sampled
+    // direction forever. Decay it back toward zero so computeTarget's hasDir
+    // check naturally drops out (ending the perch-drift) — facing itself no
+    // longer reads velAvg (see pickRowForState), so this only affects offset.
+    if (now - RUNTIME.lastMoveTs > VEL_DECAY_DELAY_MS) {
+      const decay = Math.exp(-dtMs / VEL_DECAY_TAU_MS);
+      RUNTIME.velAvg.x *= decay;
+      RUNTIME.velAvg.y *= decay;
+      RUNTIME.speedAvg = Math.hypot(RUNTIME.velAvg.x, RUNTIME.velAvg.y);
+    }
+
+    // follow feel: walk toward the target at a steady pace, like it's actually
+    // travelling there on its own — not eased/snapped toward a moving point on a
+    // leash. Direction is recomputed every frame, so it turns naturally as the
+    // target (cursor) moves, and eases to a stop on arrival instead of overshooting.
+    computeTarget();
   }
 
-  // follow feel: walk toward the target at a steady pace, like it's actually
-  // travelling there on its own — not eased/snapped toward a moving point on a
-  // leash. Direction is recomputed every frame, so it turns naturally as the
-  // target (cursor) moves, and eases to a stop on arrival instead of overshooting.
-  computeTarget();
   const dx = RUNTIME.target.x - RUNTIME.pos.x;
   const dy = RUNTIME.target.y - RUNTIME.pos.y;
   const dist = Math.hypot(dx, dy);
 
-  const desired = pickStateBySpeed();
+  const desired = STATE.mode === "wander" ? wanderDesiredState() : pickStateBySpeed();
   if (desired !== RUNTIME.anim.name) {
     // Queue the switch; wait for current cycle to finish before committing
     if (!RUNTIME.pendingState || RUNTIME.pendingState.name !== desired) {
@@ -379,8 +515,12 @@ function tick(dtMs) {
     const atCycleEnd = RUNTIME.anim.frame >= st.frames - 1;
     const timedOut = (performance.now() - RUNTIME.pendingState.queuedAt) > 300;
     if (atCycleEnd || timedOut) {
+      const enteringAttack = RUNTIME.pendingState.name === "attack";
       RUNTIME.anim.name = RUNTIME.pendingState.name;
       RUNTIME.anim.row  = pickRowForState(RUNTIME.anim.name, dx, dy);
+      // Start attack cleanly from its first frame so cycle-counting below
+      // (which needs a real wraparound to detect "one full cycle") is exact.
+      if (enteringAttack) { RUNTIME.anim.frame = 0; RUNTIME.anim.accMs = 0; }
       RUNTIME.pendingState = null;
     }
   } else {
@@ -398,6 +538,8 @@ function tick(dtMs) {
     RUNTIME.pos.x += (dx / dist) * moveDist;
     RUNTIME.pos.y += (dy / dist) * moveDist;
     RUNTIME.isWalking = true;
+    WANDER.lastDir.x = dx;
+    WANDER.lastDir.y = dy;
   } else {
     RUNTIME.isWalking = false;
   }
@@ -407,7 +549,14 @@ function tick(dtMs) {
   RUNTIME.anim.accMs += dtMs;
   while (RUNTIME.anim.accMs >= msPerFrame) {
     RUNTIME.anim.accMs -= msPerFrame;
+    const prevFrame = RUNTIME.anim.frame;
     RUNTIME.anim.frame = (RUNTIME.anim.frame + 1) % st.frames;
+    // Count full attack loops by wraparound, then hand control back to idle
+    // once the FSM's 1-2 cycle budget is spent (see enterAttack()).
+    if (STATE.mode === "wander" && WANDER.state === "attack" && RUNTIME.anim.name === "attack" && RUNTIME.anim.frame < prevFrame) {
+      WANDER.attackCyclesLeft -= 1;
+      if (WANDER.attackCyclesLeft <= 0) enterPause();
+    }
   }
 
   // Keep the row updated continuously for natural facing
@@ -422,6 +571,7 @@ function tick(dtMs) {
 // No more chrome.* calls will work here, so just remove our DOM/listeners.
 function teardownInvalidatedContext() {
   window.removeEventListener("mousemove", onMouseMove);
+  window.removeEventListener("resize", onViewportResize);
   stopLocalPoll();
   removeFollower();
   running = false;
@@ -536,10 +686,11 @@ function applyState() {
 
 // boot
 chrome.storage.sync.get(
-  ["vcp1_enabled", "vcp1_pack", "vcp1_scale", "vcp1_offset", "vcp1_lerp"],
+  ["vcp1_enabled", "vcp1_pack", "vcp1_scale", "vcp1_offset", "vcp1_lerp", "vcp1_mode"],
   async (res) => {
     STATE.enabled = !!res.vcp1_enabled;
     STATE.pack    = res.vcp1_pack || DEFAULT_PACK;
+    STATE.mode    = res.vcp1_mode === "wander" ? "wander" : "follow";
     applyConfigPatch(res);
     try {
       await loadPack(STATE.pack);
@@ -581,6 +732,16 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
     };
     applyConfigPatch(patch);
     // no restart needed; next frame uses updated CONFIG
+  }
+  if (changes.vcp1_mode) {
+    const nextMode = changes.vcp1_mode.newValue === "wander" ? "wander" : "follow";
+    if (nextMode !== STATE.mode) {
+      STATE.mode = nextMode;
+      // Force the wander FSM to restart fresh next time wander is (re)entered;
+      // switching to follow needs no extra work — computeTarget() just takes
+      // over from wherever the follower currently stands.
+      if (nextMode === "follow") WANDER.state = null;
+    }
   }
 });
 

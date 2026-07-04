@@ -177,9 +177,58 @@ function smokeFacingProbe() {
               return;
             }
             ipcRenderer.send("vcp1:smoke-facing", "ok");
+            smokeWanderProbe();
           });
         }, 2500);
       });
     }, 900);
   }, 4500);
+}
+
+// Switch to wander mode the same way the popup's mode toggle would (a
+// storage write — there's no mode-toggle UI in the overlay window itself),
+// then feed NO cursor input at all and confirm the follower (a) moves on its
+// own and (b) never strays outside the viewport. The wander FSM always starts
+// in "roam" (see content.js's WANDER.state lazy-init), so movement begins
+// immediately — poll with early-exit instead of a fixed sample-then-evaluate
+// window so a stray PAUSE right after an unlucky near-instant waypoint arrival
+// can't make an otherwise-passing run look stalled.
+function smokeWanderProbe() {
+  window.chrome.storage.sync.set({ vcp1_mode: "wander" }, () => {
+    setTimeout(() => {
+      const start = Date.now();
+      const deadline = start + 10000; // covers a worst-case 8s PAUSE backstop
+      const MOVE_THRESHOLD_PX = 15;
+      let last = readFollowerPos();
+      let moved = 0;
+      const poll = setInterval(() => {
+        const vw = window.innerWidth, vh = window.innerHeight;
+        const p = readFollowerPos();
+        if (p) {
+          if (p.x < -1 || p.x > vw + 1 || p.y < -1 || p.y > vh + 1) {
+            clearInterval(poll);
+            ipcRenderer.send("vcp1:smoke-wander", `fail:oob:${JSON.stringify(p)}`);
+            return;
+          }
+          if (last) moved += Math.hypot(p.x - last.x, p.y - last.y);
+          last = p;
+          if (moved >= MOVE_THRESHOLD_PX) {
+            clearInterval(poll);
+            ipcRenderer.send("vcp1:smoke-wander", "ok");
+            return;
+          }
+        }
+        if (Date.now() >= deadline) {
+          clearInterval(poll);
+          ipcRenderer.send("vcp1:smoke-wander", `fail:no-movement:${moved.toFixed(2)}`);
+        }
+      }, 100);
+    }, 250);
+  });
+}
+
+function readFollowerPos() {
+  const el = document.getElementById("__vcp1_follower");
+  const m = el && /translate\(\s*(-?[\d.]+)px,\s*(-?[\d.]+)px\)/.exec(el.style.transform || "");
+  return m ? { x: parseFloat(m[1]), y: parseFloat(m[2]) } : null;
 }
