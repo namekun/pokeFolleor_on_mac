@@ -10,6 +10,10 @@ const SMOKE = process.argv.includes("--smoke");
 // overlay with synthetic mousemoves without the actual system cursor
 // injecting unrelated motion mid-test. No effect on `npm run app`/`app:smoke`.
 const NO_CURSOR_FEED = process.argv.includes("--no-cursor-feed");
+// Dev/test-only: open the Settings window immediately at boot instead of
+// waiting for a tray click, so a CDP harness gets a target for it without
+// having to drive the native tray menu. No effect on `npm run app`/`app:smoke`.
+const OPEN_SETTINGS_ON_BOOT = process.argv.includes("--open-settings");
 
 // serve repo files over poke://app/<path> so fetch() works (file:// blocks fetch)
 protocol.registerSchemesAsPrivileged([
@@ -337,6 +341,7 @@ app.whenReady().then(() => {
   if (app.dock) app.dock.hide(); // menu-bar utility; no Dock icon
   createTray();
   rebuildWindows();
+  if (OPEN_SETTINGS_ON_BOOT) openSettings();
   screen.on("display-added", rebuildWindows);
   screen.on("display-removed", rebuildWindows);
   screen.on("display-metrics-changed", rebuildWindows);

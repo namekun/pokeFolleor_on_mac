@@ -40,6 +40,9 @@ function applySnapshot(snap) {
   node.style.backgroundImage = `url("${snap.bgImage}")`;
   node.style.backgroundSize = (snap.bgSizeW && snap.bgSizeH) ? `${snap.bgSizeW}px ${snap.bgSizeH}px` : "";
   node.style.backgroundPosition = `${snap.bpx}px ${snap.bpy}px`;
+  // Evolution silhouette flash (see content.js's applyFrame()) -- mirrored
+  // verbatim so the effect is visible on every display, not just the engine's.
+  node.style.filter = snap.filter || "";
 
   const localX = snap.x - originX;
   const localY = snap.y - originY;

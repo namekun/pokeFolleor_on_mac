@@ -61,7 +61,25 @@ const VEL_DECAY_TAU_MS   = 120; // exponential decay time constant once decaying
 let TEST_SLEEP_TIMEOUT_MS = null;
 function sleepTimeoutMs() { return TEST_SLEEP_TIMEOUT_MS ?? SLEEP_TIMEOUT_MS; }
 window.__VCP1_TEST_HOOKS__ = {
-  setSleepTimeoutMs(ms) { TEST_SLEEP_TIMEOUT_MS = (typeof ms === "number" && ms > 0) ? ms : null; }
+  setSleepTimeoutMs(ms) { TEST_SLEEP_TIMEOUT_MS = (typeof ms === "number" && ms > 0) ? ms : null; },
+  // Test-only entry points for the XP/evolution engine below (see "evolution
+  // / growth (XP) engine" section) -- lets an automated harness grant XP
+  // directly instead of waiting real-time for activity/distance to accrue it.
+  grantXP(amount) { awardXP(Number(amount) || 0); },
+  getGrowthSnapshot() {
+    const dex3 = currentGrowthDex();
+    const xp = (GROWTH[dex3] && GROWTH[dex3].xp) || 0;
+    return {
+      pack: STATE.pack,
+      dex: dex3,
+      xp,
+      level: levelForXp(xp),
+      unlocked: Array.from(UNLOCKED),
+      pendingEvolution: PENDING_EVOLUTION,
+      evolveFlashActive: EVOLVE.active
+    };
+  },
+  flushGrowthNow() { growthDirty = true; flushGrowth(); }
 };
 
 function hasState(name) {
@@ -359,6 +377,267 @@ function resetAnimationForNewPack() {
   HOVER.inside = false;
   HOVER.exitedSinceLastAttack = true;
   HOVER.cooldownUntil = 0;
+  // A pack switch (manual, while an evolution flash happened to be mid-way)
+  // should not leave the flash filter stuck applied to the new sprite.
+  EVOLVE.active = false;
+}
+
+// --- evolution / growth (XP) engine ---
+// Hybrid XP: activity time + actual sprite movement distance + interaction
+// (hover-attack), weighted interaction > distance > time per constant size
+// below. These are a rough estimate -- there's no real usage telemetry to
+// calibrate against yet -- grouped here so pacing can be retuned in one
+// place. Target pace: a typical user who leaves the follower enabled and
+// occasionally triggers a hover-attack reaches the first evolution threshold
+// (level 16, e.g. Bulbasaur->Ivysaur) in roughly half a day of use.
+const XP_PER_ACTIVE_MINUTE = 0.5;    // time: awarded once per full minute the engine ticks (STATE.enabled)
+const XP_PER_PIXEL_MOVED   = 0.0015; // distance: per px of actual sprite movement (RUNTIME.pos delta in tick())
+const XP_PER_HOVER_ATTACK  = 20;     // interaction: flat bonus per user-triggered hover attack (see triggerHoverAttack)
+const LEVEL_XP_BASE = 5; // xpForLevel(L) = LEVEL_XP_BASE * (L-1)^2 -- cumulative XP required to BE level L
+
+function xpForLevel(level) {
+  const n = Math.max(1, level) - 1;
+  return LEVEL_XP_BASE * n * n;
+}
+function levelForXp(xp) {
+  return 1 + Math.floor(Math.sqrt(Math.max(0, xp) / LEVEL_XP_BASE));
+}
+
+// In-memory growth ledger, hydrated from chrome.storage.sync once at boot.
+// { [dex3]: { xp } }, dex3 always keyed to whatever pack is CURRENTLY
+// selected -- on evolution this same record moves (not resets) to the
+// evolved form's dex, since it's the same creature growing (see evolveTo()).
+const GROWTH = {};
+let growthDirty = false;
+let growthLoaded = false;
+// dex3 keys removed from GROWTH (see evolveTo()) that must also be removed
+// from storage on the next flush -- flushGrowth()'s merge only ever raises
+// an existing key's xp, so without this the old pre-evolution dex would
+// silently resurrect from storage instead of actually moving.
+const growthDeletions = new Set();
+// flushGrowth() does an async read-modify-write (storage.get then storage.set);
+// without serializing, two flushes fired close together (e.g. a level-up
+// flush racing the 30s interval) can both read the same stale "stored"
+// value before either write lands, and the second write clobbers the
+// first's result (lost update). See flushGrowth() for how these are used.
+let flushInFlight = false;
+let flushPending = false;
+let xpTimeAccMs = 0; // minutes-of-activity accumulator for the time-based XP source
+
+// { [dex3]: { to: [{ dex, level }] } } from evolutions.json (build:evolutions).
+let EVOLUTIONS = {};
+// { [dex3]: packId } from index.json -- resolves an evolution target's bare
+// dex number into a loadable pack path (evolutions.json only carries dex+level).
+let PACK_INDEX_BY_DEX = {};
+
+let UNLOCKED = new Set(); // dex3 strings the user has unlocked (evolved into, or grandfathered in)
+// { dex, choices: [{dex, level}] } | null -- a branch evolution (e.g. Eevee)
+// awaiting a user choice in Settings. Persisted so it survives a restart.
+let PENDING_EVOLUTION = null;
+
+const EVOLVE_FLASH_MS = 1400; // silhouette-flash duration before the pack actually switches
+const EVOLVE = { active: false, startedAt: 0 }; // drives the flash filter in applyFrame()
+
+function currentGrowthDex() {
+  const dex = dexFromSlug(packSlug());
+  return Number.isFinite(dex) ? String(dex).padStart(3, "0") : "";
+}
+
+async function fetchJsonAsset(rel, fallback) {
+  try {
+    const res = await fetch(extUrl(rel));
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    // Silent fallback (same pattern as popup.js's Korean-name lookup): a
+    // missing/broken asset must not block pack loading or leave everything
+    // permanently locked.
+    console.warn(`PokeFollower: ${rel} unavailable`, e);
+    return fallback;
+  }
+}
+
+async function loadEvolutionData() {
+  const [evolutions, index] = await Promise.all([
+    fetchJsonAsset("assets/packs/evolutions.json", {}),
+    fetchJsonAsset("assets/packs/index.json", { retro: [] })
+  ]);
+  EVOLUTIONS = evolutions || {};
+  const byDex = {};
+  for (const entry of (index && index.retro) || []) {
+    const dex = dexFromSlug((entry.id || "").split("/").pop());
+    if (Number.isFinite(dex)) byDex[String(dex).padStart(3, "0")] = entry.id;
+  }
+  PACK_INDEX_BY_DEX = byDex;
+}
+
+// A dex is locked iff *some non-baby* source evolves into it -- a baby's own
+// immediate evolution (e.g. Pichu -> Pikachu) is exempt: nobody starts with
+// a baby (it only appears via breeding), so its result is selectable from
+// the start. The baby's own further evolution (e.g. Pikachu -> Raichu)
+// still locks normally, since that source isn't itself a baby.
+function isLockedDex(dex3) {
+  return Object.values(EVOLUTIONS).some((e) => !e.baby && e.to.some((t) => t.dex === dex3));
+}
+
+function hydrateGrowthState(res) {
+  Object.assign(GROWTH, res.vcp1_growth || {});
+  UNLOCKED = new Set(res.vcp1_unlocked || []);
+  PENDING_EVOLUTION = res.vcp1_pending_evolution || null;
+  growthLoaded = true;
+
+  // Migration: an existing user's currently-selected pack may itself be a
+  // locked evolution result (e.g. this build's own default, Blastoise) --
+  // grandfather it in rather than leaving an existing selection unselectable.
+  const dex3 = currentGrowthDex();
+  if (dex3 && isLockedDex(dex3) && !UNLOCKED.has(dex3)) {
+    UNLOCKED.add(dex3);
+    persistUnlocked();
+  }
+}
+
+// Union with whatever's already stored (rather than overwrite) so two tabs
+// each unlocking something at nearly the same time can't clobber each other.
+function persistUnlocked() {
+  try {
+    chrome.storage.sync.get(["vcp1_unlocked"], (res) => {
+      const stored = new Set(res.vcp1_unlocked || []);
+      for (const d of UNLOCKED) stored.add(d);
+      chrome.storage.sync.set({ vcp1_unlocked: Array.from(stored) });
+    });
+  } catch (_) {}
+}
+function persistPendingEvolution() {
+  try { chrome.storage.sync.set({ vcp1_pending_evolution: PENDING_EVOLUTION }); } catch (_) {}
+}
+
+// Flush at most every 30s (see the interval below) plus around important
+// events (level-up, evolution, beforeunload) -- never on every tick. Reads
+// the currently-stored value first and keeps whichever xp is higher: the
+// Chrome extension runs one of these engines per open tab, all sharing this
+// same storage but each with its own independent in-memory GROWTH, so a
+// stale tab flushing last must not roll a dex's xp backward.
+function flushGrowth() {
+  if (!growthDirty || !growthLoaded) return;
+  // Serialize: if a flush is already mid-flight, don't start a second
+  // overlapping read-modify-write -- just note that another flush is needed
+  // and let the in-flight one's completion callback pick it up with
+  // whatever GROWTH/growthDeletions look like by then.
+  if (flushInFlight) { flushPending = true; return; }
+  growthDirty = false;
+  flushInFlight = true;
+  const toWrite = { ...GROWTH };
+  const toDelete = new Set(growthDeletions);
+  growthDeletions.clear();
+  const done = () => {
+    flushInFlight = false;
+    if (flushPending) {
+      flushPending = false;
+      growthDirty = true; // guarantee the deferred flush actually runs
+      flushGrowth();
+    }
+  };
+  try {
+    chrome.storage.sync.get(["vcp1_growth"], (res) => {
+      const stored = res.vcp1_growth || {};
+      const merged = { ...stored };
+      for (const dex of Object.keys(toWrite)) {
+        const storedXp = (stored[dex] && stored[dex].xp) || 0;
+        const localXp = toWrite[dex].xp || 0;
+        merged[dex] = { xp: Math.max(storedXp, localXp) };
+      }
+      // Only actually remove a deleted dex if nothing re-added it in the same
+      // flush (defensive; in-memory GROWTH never does this today).
+      for (const dex of toDelete) {
+        if (!(dex in toWrite)) delete merged[dex];
+      }
+      chrome.storage.sync.set({ vcp1_growth: merged }, done);
+    });
+  } catch (_) {
+    done();
+  }
+}
+setInterval(flushGrowth, 30000);
+
+function awardXP(amount) {
+  if (!growthLoaded || !(amount > 0)) return;
+  const dex3 = currentGrowthDex();
+  if (!dex3) return;
+  const prevXp = (GROWTH[dex3] && GROWTH[dex3].xp) || 0;
+  const prevLevel = levelForXp(prevXp);
+  const nextXp = prevXp + amount;
+  GROWTH[dex3] = { xp: nextXp };
+  growthDirty = true;
+  const nextLevel = levelForXp(nextXp);
+  if (nextLevel > prevLevel) {
+    flushGrowth(); // persist promptly around a level-up rather than waiting for the timer
+    checkEvolution(dex3, nextLevel);
+  }
+}
+
+// Simplification: only one evolution decision is tracked at a time (Phase 1
+// has a single active pack, not a roster), so a pending choice for ANY dex
+// blocks new checks globally until it's resolved.
+function checkEvolution(dex3, level) {
+  if (EVOLVE.active || PENDING_EVOLUTION) return;
+  const entry = EVOLUTIONS[dex3];
+  if (!entry || !entry.to || !entry.to.length) return;
+  if (entry.to.length === 1) {
+    if (level >= entry.to[0].level) evolveTo(dex3, entry.to[0].dex);
+    return;
+  }
+  // Branch (e.g. Eevee): Phase 1 has no per-method state (stone/trade/
+  // friendship) to prefer one branch over another, so becoming eligible for
+  // the *lowest* threshold among the branches offers every option at once.
+  const minLevel = Math.min(...entry.to.map((t) => t.level));
+  if (level >= minLevel) {
+    PENDING_EVOLUTION = { dex: dex3, choices: entry.to };
+    persistPendingEvolution();
+  }
+}
+
+// Executes an evolution: white-silhouette flash, then the pack switch. Used
+// both for an automatic single-path evolution and a user-chosen branch pick
+// (from Settings, via the "vcp1_evolve" runtime message below).
+function evolveTo(fromDex3, toDex3) {
+  // Reentrancy guard: a second trigger while a flash is already in progress
+  // (e.g. a double-clicked branch-choice button, both messages landing
+  // before PENDING_EVOLUTION clears at the end of the first flash) must not
+  // schedule a second pack-switch -- two overlapping setTimeout callbacks
+  // would race on GROWTH[fromDex3]/[toDex3], and the second one reads it
+  // *after* the first has already deleted it, silently zeroing the XP that
+  // was just moved.
+  if (EVOLVE.active) return;
+  const targetId = PACK_INDEX_BY_DEX[toDex3];
+  if (!targetId) return; // build:evolutions asserts every target exists in index.json; defensive no-op otherwise
+  EVOLVE.active = true;
+  EVOLVE.startedAt = performance.now();
+  setTimeout(async () => {
+    EVOLVE.active = false;
+    // Move the growth record: same creature, new dex, XP carries over as-is.
+    const record = GROWTH[fromDex3] || { xp: 0 };
+    delete GROWTH[fromDex3];
+    growthDeletions.add(fromDex3);
+    GROWTH[toDex3] = record;
+    growthDirty = true;
+    UNLOCKED.add(toDex3);
+    persistUnlocked();
+    if (PENDING_EVOLUTION && PENDING_EVOLUTION.dex === fromDex3) {
+      PENDING_EVOLUTION = null;
+      persistPendingEvolution();
+    }
+    flushGrowth();
+    try {
+      await loadPack(targetId);
+      chrome.storage.sync.set({ vcp1_pack: targetId });
+      // A single big XP grant can cross more than one threshold at once
+      // (e.g. 001->002->003) -- re-check from the new dex so growth chains
+      // through every step it has already earned, one flash at a time.
+      checkEvolution(toDex3, levelForXp(record.xp));
+    } catch (e) {
+      console.warn("evolution pack load failed", e);
+    }
+  }, EVOLVE_FLASH_MS);
 }
 
 function applyFrame() {
@@ -404,6 +683,14 @@ function applyFrame() {
     `scale(${SCALE_VAL})`;
   followerEl.style.transformOrigin = "center center";
 
+  // Evolution silhouette: blink between a flat white cutout and the normal
+  // sprite while EVOLVE.active (see evolveTo()) — a lightweight stand-in for
+  // a real evolution animation using only CSS filters on the existing sheet.
+  const evolveFilter = EVOLVE.active && Math.floor((performance.now() - EVOLVE.startedAt) / 150) % 2 === 0
+    ? "brightness(0) invert(1)"
+    : "";
+  followerEl.style.filter = evolveFilter;
+
   // Desktop app only: hand a snapshot of what was just painted to any mirror
   // windows on other displays, so they can render the same sprite without
   // running this engine themselves. Undefined (and this whole block skipped)
@@ -413,7 +700,7 @@ function applyFrame() {
       x: RUNTIME.pos.x, y: RUNTIME.pos.y,
       w, h, bgImage: sheetUrl, bpx, bpy,
       bgSizeW: img?.naturalWidth || 0, bgSizeH: img?.naturalHeight || 0,
-      scale: SCALE_VAL
+      scale: SCALE_VAL, filter: evolveFilter
     });
   }
 }
@@ -677,6 +964,10 @@ function triggerHoverAttack(now) {
   const st = RUNTIME.meta.states.attack;
   const cycleMs = (st && st.fps) ? (st.frames / st.fps) * 1000 : 1000;
   HOVER.until = now + cycleMs + 1000;
+  // Interaction bonus: a deliberate user-triggered hover attack, not the
+  // wander FSM's own random attack roll (enterAttack()) -- that one isn't
+  // user interaction, so it earns no XP.
+  awardXP(XP_PER_HOVER_ATTACK);
 }
 
 function endHoverAttack(now) {
@@ -690,6 +981,14 @@ function endHoverAttack(now) {
 
 function tick(dtMs) {
   const now = performance.now();
+
+  // Time-based XP: awarded once per full minute this engine is actively
+  // ticking (i.e. STATE.enabled) -- tick() only ever runs while that's true.
+  xpTimeAccMs += dtMs;
+  while (xpTimeAccMs >= 60000) {
+    xpTimeAccMs -= 60000;
+    awardXP(XP_PER_ACTIVE_MINUTE);
+  }
 
   updateHover(now);
 
@@ -762,6 +1061,8 @@ function tick(dtMs) {
     RUNTIME.isWalking = true;
     WANDER.lastDir.x = dx;
     WANDER.lastDir.y = dy;
+    // Distance-based XP: actual sprite movement, not raw cursor movement.
+    awardXP(moveDist * XP_PER_PIXEL_MOVED);
   } else {
     RUNTIME.isWalking = false;
   }
@@ -921,12 +1222,15 @@ function applyState() {
 
 // boot
 chrome.storage.sync.get(
-  ["vcp1_enabled", "vcp1_pack", "vcp1_scale", "vcp1_offset", "vcp1_lerp", "vcp1_mode"],
+  ["vcp1_enabled", "vcp1_pack", "vcp1_scale", "vcp1_offset", "vcp1_lerp", "vcp1_mode",
+   "vcp1_growth", "vcp1_unlocked", "vcp1_pending_evolution"],
   async (res) => {
     STATE.enabled = !!res.vcp1_enabled;
     STATE.pack    = res.vcp1_pack || DEFAULT_PACK;
     STATE.mode    = res.vcp1_mode === "wander" ? "wander" : "follow";
     applyConfigPatch(res);
+    await loadEvolutionData();
+    hydrateGrowthState(res);
     try {
       await loadPack(STATE.pack);
     } catch (e) {
@@ -990,6 +1294,14 @@ chrome.runtime.onMessage.addListener((msg) => {
     return;
   }
 
+  // User's branch-evolution pick from Settings (e.g. which Eevee evolution).
+  if (msg.type === "vcp1_evolve" && msg.dex) {
+    if (PENDING_EVOLUTION && PENDING_EVOLUTION.choices.some((c) => c.dex === msg.dex)) {
+      evolveTo(PENDING_EVOLUTION.dex, msg.dex);
+    }
+    return;
+  }
+
   if (msg.type === "vcp1_drag") {
     const on = !!msg.dragging;
     if (on && !LIVE.dragging) {
@@ -1002,4 +1314,4 @@ chrome.runtime.onMessage.addListener((msg) => {
   }
 });
 
-window.addEventListener("beforeunload", () => { stopLocalPoll(); stop(); });
+window.addEventListener("beforeunload", () => { stopLocalPoll(); stop(); growthDirty = true; flushGrowth(); });

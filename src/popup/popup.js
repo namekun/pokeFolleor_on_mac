@@ -87,10 +87,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     return enLabel;
   }
+  // Locked options get a 🔒 prefix on top of the language-aware base label.
+  function finalLabelForOption(opt) {
+    const base = labelForOption(opt);
+    return opt.disabled ? `🔒 ${base}` : base;
+  }
   function applyLangToOptions() {
     if (!packEl) return;
     for (const opt of Array.from(packEl.options)) {
-      opt.textContent = labelForOption(opt);
+      opt.textContent = finalLabelForOption(opt);
     }
   }
   function updateLangUI() {
@@ -118,6 +123,126 @@ document.addEventListener("DOMContentLoaded", () => {
       if (data && typeof data === "object") Object.assign(KO_NAMES, data);
     } catch (e) {
       console.warn("PokeFollower: Korean names unavailable, using English", e);
+    }
+  }
+
+  // --- Evolution lock + growth (XP/level) display (Phase 1) ---
+  // Pure XP curve duplicated from content.js's engine -- LEVEL_XP_BASE must
+  // stay in sync with that file (see its "evolution / growth" section for
+  // the full design rationale). Two independent scripts, no shared module
+  // system in this codebase (same as DEFAULT_PACK above already differing).
+  const LEVEL_XP_BASE = 5; // xpForLevel(L) = LEVEL_XP_BASE * (L-1)^2
+  function xpForLevel(level) {
+    const n = Math.max(1, level) - 1;
+    return LEVEL_XP_BASE * n * n;
+  }
+  function levelForXp(xp) {
+    return 1 + Math.floor(Math.sqrt(Math.max(0, xp) / LEVEL_XP_BASE));
+  }
+
+  let EVOLUTIONS = {};             // { [dex3]: { to: [{ dex, level }] } }
+  const LOCKED_DEX = new Set();    // dex3 strings that are *someone's* evolution result
+  let UNLOCKED_DEX = new Set();    // dex3 strings the user has unlocked
+  let GROWTH_DATA = {};            // { [dex3]: { xp } }
+  let PENDING_EVOLUTION = null;    // { dex, choices: [{dex, level}] } | null
+
+  const GROWTH_LABELS = {
+    evolvesAt: { en: (lv) => `Evolves at Lv.${lv}`, ko: (lv) => `Lv.${lv}에 진화` },
+    finalForm: { en: "Final form", ko: "최종 진화형" },
+    chooseEvolution: { en: "Choose evolution:", ko: "진화를 선택하세요:" }
+  };
+
+  // Best-effort fetch of the evolution graph; silent fallback (nothing
+  // locked) on failure -- same pattern as loadKoNames() below.
+  async function loadEvolutions() {
+    try {
+      const url = chrome.runtime.getURL("assets/packs/evolutions.json");
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("evolutions.json not found");
+      const data = await res.json();
+      if (data && typeof data === "object") {
+        EVOLUTIONS = data;
+        // A baby's own immediate evolution (e.g. Pichu -> Pikachu) is exempt
+        // from the lock: nobody starts with a baby (it only appears via
+        // breeding), so its result is selectable from the start. The baby's
+        // own further evolution (e.g. Pikachu -> Raichu) still locks as usual.
+        for (const key of Object.keys(data)) {
+          if (data[key].baby) continue;
+          for (const t of (data[key].to || [])) LOCKED_DEX.add(t.dex);
+        }
+      }
+    } catch (e) {
+      console.warn("PokeFollower: evolutions.json unavailable, all packs unlocked", e);
+    }
+  }
+
+  function optionForDex3(dex3) {
+    if (!packEl) return null;
+    return Array.from(packEl.options).find((o) => dexKeyFromValue(o.value) === dex3);
+  }
+
+  // Disable (and later, prefix 🔒 via finalLabelForOption) any option that's
+  // a locked evolution result the user hasn't unlocked -- except the
+  // currently-selected pack, which always displays as selectable regardless
+  // of lock state (avoids a migration-timing race where this popup reads
+  // vcp1_unlocked before content.js's own migration write lands).
+  function applyLockState() {
+    if (!packEl) return;
+    const current = dexKeyFromValue(packEl.value);
+    for (const opt of Array.from(packEl.options)) {
+      const dex3 = dexKeyFromValue(opt.value);
+      opt.disabled = !!dex3 && LOCKED_DEX.has(dex3) && !UNLOCKED_DEX.has(dex3) && dex3 !== current;
+    }
+  }
+
+  function currentDex3() {
+    return dexKeyFromValue(packEl ? packEl.value : "");
+  }
+
+  function renderGrowthUI() {
+    if (!levelLabelEl || !xpBarFillEl || !evolveHintEl) return;
+    const dex3 = currentDex3();
+    const xp = (GROWTH_DATA[dex3] && GROWTH_DATA[dex3].xp) || 0;
+    const level = levelForXp(xp);
+    levelLabelEl.textContent = `Lv. ${level}`;
+    const base = xpForLevel(level);
+    const next = xpForLevel(level + 1);
+    const pct = next > base ? Math.min(100, Math.max(0, ((xp - base) / (next - base)) * 100)) : 100;
+    xpBarFillEl.style.width = `${pct}%`;
+
+    const entry = EVOLUTIONS[dex3];
+    if (!entry || !entry.to || !entry.to.length) {
+      evolveHintEl.textContent = GROWTH_LABELS.finalForm[CUR_LANG] || GROWTH_LABELS.finalForm.en;
+    } else {
+      const minLevel = Math.min(...entry.to.map((t) => t.level));
+      const fn = GROWTH_LABELS.evolvesAt[CUR_LANG] || GROWTH_LABELS.evolvesAt.en;
+      evolveHintEl.textContent = fn(minLevel);
+    }
+  }
+
+  function renderEvolveChoice() {
+    if (!evolveChoiceEl || !evolveChoiceButtonsEl || !evolveChoiceLabelEl) return;
+    const dex3 = currentDex3();
+    const show = !!(PENDING_EVOLUTION && PENDING_EVOLUTION.dex === dex3 && Array.isArray(PENDING_EVOLUTION.choices));
+    evolveChoiceEl.hidden = !show;
+    if (!show) return;
+    evolveChoiceLabelEl.textContent = GROWTH_LABELS.chooseEvolution[CUR_LANG] || GROWTH_LABELS.chooseEvolution.en;
+    evolveChoiceButtonsEl.innerHTML = "";
+    for (const choice of PENDING_EVOLUTION.choices) {
+      const opt = optionForDex3(choice.dex);
+      if (!opt) continue;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = labelForOption(opt);
+      btn.addEventListener("click", () => {
+        // Disable immediately -- content.js's own reentrancy guard is the
+        // real fix for a double-click, but the storage round-trip that
+        // clears PENDING_EVOLUTION (and re-hides this section) isn't
+        // instant, so a fast second click here shouldn't even get a chance to fire.
+        Array.from(evolveChoiceButtonsEl.querySelectorAll("button")).forEach((b) => { b.disabled = true; });
+        try { chrome.runtime.sendMessage({ type: "vcp1_evolve", dex: choice.dex }); } catch (_) {}
+      });
+      evolveChoiceButtonsEl.appendChild(btn);
     }
   }
 
@@ -186,6 +311,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const lerpVal   = document.getElementById("lerpVal");
   const previewSpriteEl = document.getElementById("previewSprite");
 
+  // Growth (level/XP) + branch-evolution choice UI
+  const levelLabelEl = document.getElementById("levelLabel");
+  const xpBarFillEl  = document.getElementById("xpBarFill");
+  const evolveHintEl = document.getElementById("evolveHint");
+  const evolveChoiceEl = document.getElementById("evolveChoice");
+  const evolveChoiceLabelEl = document.getElementById("evolveChoiceLabel");
+  const evolveChoiceButtonsEl = document.getElementById("evolveChoiceButtons");
+
   // Defaults align with current content.js constants
   const DEFAULTS = {
     vcp1_scale: 1.25,   // SCALE
@@ -233,7 +366,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Load saved settings
   chrome.storage.sync.get(
-    ["vcp1_enabled", "vcp1_pack", "vcp1_scale", "vcp1_offset", "vcp1_lerp", "vcp1_lang", "vcp1_mode"],
+    ["vcp1_enabled", "vcp1_pack", "vcp1_scale", "vcp1_offset", "vcp1_lerp", "vcp1_lang", "vcp1_mode",
+     "vcp1_unlocked", "vcp1_growth", "vcp1_pending_evolution"],
     (res) => {
       enabledEl.checked = !!res.vcp1_enabled;
       const storedPack  = res.vcp1_pack || DEFAULT_PACK;
@@ -241,6 +375,9 @@ document.addEventListener("DOMContentLoaded", () => {
       updateLangUI();
       CUR_MODE = (res.vcp1_mode === "wander") ? "wander" : "follow";
       updateModeUI();
+      UNLOCKED_DEX = new Set(res.vcp1_unlocked || []);
+      GROWTH_DATA = res.vcp1_growth || {};
+      PENDING_EVOLUTION = res.vcp1_pending_evolution || null;
 
       const scale  = (typeof res.vcp1_scale  === "number") ? res.vcp1_scale  : DEFAULTS.vcp1_scale;
       const offset = (typeof res.vcp1_offset === "number") ? res.vcp1_offset : DEFAULTS.vcp1_offset;
@@ -259,7 +396,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Prefer dynamic index.json; fallback to static options then normalize labels/order
       (async () => {
-        await loadKoNames();
+        await Promise.all([loadKoNames(), loadEvolutions()]);
         const ok = await populatePacksFromIndex(storedPack);
         if (!ok) {
           // Use whatever is in HTML, but fix labels/order
@@ -267,12 +404,52 @@ document.addEventListener("DOMContentLoaded", () => {
           packEl.value = storedPack;
           if (packEl.selectedIndex === -1 && packEl.options.length) packEl.selectedIndex = 0;
         }
+        applyLockState();
         // Final word on option labels + search meta for the active language
         applyLang(CUR_LANG);
         setPreviewForPack(packEl.value);
+        renderGrowthUI();
+        renderEvolveChoice();
       })();
     }
   );
+
+  // React to changes from other windows (content.js's engine): evolution
+  // switches the active pack + unlocks the result, XP flushes update the
+  // level bar, and a branch decision (e.g. Eevee) becoming available/resolved
+  // toggles the choice section -- all without needing to reopen Settings.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "sync") return;
+    let needsLockRefresh = false;
+
+    if (changes.vcp1_unlocked) {
+      UNLOCKED_DEX = new Set(changes.vcp1_unlocked.newValue || []);
+      needsLockRefresh = true;
+    }
+    if (changes.vcp1_pack) {
+      const nextPack = changes.vcp1_pack.newValue || DEFAULT_PACK;
+      if (packEl && packEl.value !== nextPack) {
+        packEl.value = nextPack;
+        if (packEl.selectedIndex === -1 && packEl.options.length) packEl.selectedIndex = 0;
+        setPreviewForPack(packEl.value);
+      }
+      needsLockRefresh = true; // current-pack-always-unlocked-for-display depends on this
+    }
+    if (changes.vcp1_growth) {
+      GROWTH_DATA = changes.vcp1_growth.newValue || {};
+      renderGrowthUI();
+    }
+    if (changes.vcp1_pending_evolution) {
+      PENDING_EVOLUTION = changes.vcp1_pending_evolution.newValue || null;
+      renderEvolveChoice();
+    }
+    if (needsLockRefresh) {
+      applyLockState();
+      applyLang(CUR_LANG);
+      renderGrowthUI();
+      renderEvolveChoice();
+    }
+  });
 
   // Helper: save but do NOT auto-close (except when toggling enable)
   const save = (obj) => chrome.storage.sync.set(obj);
@@ -287,6 +464,8 @@ document.addEventListener("DOMContentLoaded", () => {
   packEl.addEventListener("change", () => {
     save({ vcp1_pack: packEl.value });
     setPreviewForPack(packEl.value);
+    renderGrowthUI();
+    renderEvolveChoice();
   });
 
   // Language toggle — relabel options/datalist/search meta, keep pack selection
@@ -317,14 +496,13 @@ document.addEventListener("DOMContentLoaded", () => {
   if (shuffleBtn) {
     shuffleBtn.addEventListener("click", () => {
       if (!packEl || !packEl.options.length) return;
-      const total = packEl.options.length;
-      if (!total) return;
-      const current = packEl.selectedIndex >= 0 ? packEl.selectedIndex : 0;
-      let next = Math.floor(Math.random() * total);
-      if (total > 1 && next === current) {
-        next = (next + 1) % total;
-      }
-      packEl.selectedIndex = next;
+      const enabledOpts = Array.from(packEl.options).filter((o) => !o.disabled);
+      if (!enabledOpts.length) return;
+      const current = packEl.value;
+      const candidates = enabledOpts.filter((o) => o.value !== current);
+      const pool = candidates.length ? candidates : enabledOpts;
+      const pick = pool[Math.floor(Math.random() * pool.length)];
+      packEl.value = pick.value;
       packEl.dispatchEvent(new Event("change", { bubbles: true }));
     });
   }
@@ -471,6 +649,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!packEl) return;
     const opts = Array.from(packEl.options);
     for (const opt of opts) {
+      if (opt.disabled) continue; // locked: excluded from search suggestions + shuffle
       const id = opt.value;
       const label = opt.textContent || formatPackLabel(id);   // current-language display label
       const dex = dexFromValue(id);
@@ -765,9 +944,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const dir = right ? +1 : -1;
     const total = packEl.options.length;
+    if (!total) return;
     let idx = packEl.selectedIndex;
     if (idx < 0) idx = 0;
-    idx = (idx + dir + total) % total;
+    // Skip locked options -- bounded by `total` so an all-locked list (should
+    // never happen; base forms are always selectable) can't loop forever.
+    for (let i = 0; i < total; i++) {
+      idx = (idx + dir + total) % total;
+      if (!packEl.options[idx].disabled) break;
+    }
 
     packEl.selectedIndex = idx;
     packEl.dispatchEvent(new Event("change", { bubbles: true }));

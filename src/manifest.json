@@ -30,6 +30,7 @@
     "resources": [
       "assets/sprites/*",
       "assets/ui/*",
+      "assets/packs/*",
       "assets/packs/*/*",
       "assets/packs/*/*/*",
       "assets/raw/*/*",
