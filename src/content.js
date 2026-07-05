@@ -18,6 +18,13 @@ const RUNTIME = {
   images: {},                 // { idle: Image, walk: Image }
   anim: { name: "idle", frame: 0, row: 0, accMs: 0 },
   lastMoveTs: 0,
+  // Both default to Infinity (not 0) so the hover gates in updateHover() —
+  // which read "small" as good — can't trivially pass before any real
+  // mousemove has ever fired; RUNTIME.pos and RUNTIME.lastMouse both start at
+  // (0,0), which is already "inside" the box by coincidence, so a default of
+  // 0 here would let that boot-time coincidence alone pass both gates.
+  lastMoveGapMs: Infinity,        // ms since the *previous* mousemove, as of the latest one (see onMouseMove)
+  lastMoveInstantSpeed: Infinity, // raw px/s of the latest single mousemove, unsmoothed (see onMouseMove)
   lastMouse: { x: 0, y: 0, t: 0 },
 
   // position/target and smoothed velocity
@@ -603,6 +610,32 @@ window.addEventListener("vcp1:world-updated", onViewportResize, { passive: true 
 // section only owns containment/cooldown bookkeeping and start/end; tick()
 // applies the actual freeze + forced "attack" animation using HOVER.active.
 const HOVER_COOLDOWN_MS = 2000; // floor before a new attack can start, on top of the exit+re-entry requirement below
+// Containment alone isn't enough to mean "the user placed the cursor on the
+// sprite": a fast cursor motion can pass straight through the box (e.g. the
+// follow-mode perch sits just ~30px above the cursor, so any quick upward
+// flick clips it), and the sprite itself can walk up to a cursor that's been
+// sitting still for a while (ordinary follow-mode perching). Both read as a
+// same-frame "entering" edge but aren't a deliberate hover, so two more
+// signals gate the trigger alongside containment/exit-reentry/cooldown:
+const HOVER_MAX_SPEED_PXPS = 120; // cursor must be moving slowly — "placed and staying", not "passing through"
+const HOVER_RECENCY_MS = 150;     // cursor itself must have moved recently — not the sprite walking up to a parked cursor
+// The speed check above deliberately reads RUNTIME.lastMoveInstantSpeed (each
+// mousemove's own raw, unsmoothed px/s), not the EMA'd RUNTIME.speedAvg used
+// elsewhere (offsetDir/facing) — the EMA blends every new sample with
+// whatever it was on the *previous* event, so right after a long still
+// period a fast, steady cursor feed's first couple of ticks still read as
+// slow: tick 1's own delta gets divided by the huge gap since the last real
+// event (reads as if it crawled), and tick 2 — despite its own gap and speed
+// both being genuinely fast — blends in a large weighted share of tick 1's
+// still-tiny carried-over average, understating the true rate for another
+// tick. This was reproduced concretely: the real facing smoke probe's 500px/s
+// feed, ~1 tick after the cursor had been still for seconds, transiently
+// read as ~118px/s on the EMA — just under this gate — long enough for a
+// spurious trigger. Reading the instantaneous per-event value sidesteps the
+// carryover entirely. HOVER_WARM_GAP_MS below still separately guards against
+// trusting a single isolated movement's own delta when its *own* preceding
+// gap was itself huge (the same stale-gap arithmetic, one level up).
+const HOVER_WARM_GAP_MS = 150;
 const HOVER = {
   inside: false,                // cursor is within the current frame's rendered box
   exitedSinceLastAttack: true,  // must go true (cursor left the box) before retriggering
@@ -623,7 +656,10 @@ function updateHover(now) {
   if (!inside) HOVER.exitedSinceLastAttack = true;
 
   const enteringNow = inside && !HOVER.inside;
-  if (!HOVER.active && enteringNow && HOVER.exitedSinceLastAttack && now >= HOVER.cooldownUntil) {
+  const movingSlowEnough = RUNTIME.lastMoveInstantSpeed < HOVER_MAX_SPEED_PXPS && RUNTIME.lastMoveGapMs < HOVER_WARM_GAP_MS;
+  const cursorRecentlyMoved = (now - RUNTIME.lastMoveTs) < HOVER_RECENCY_MS;
+  if (!HOVER.active && enteringNow && HOVER.exitedSinceLastAttack && now >= HOVER.cooldownUntil &&
+      movingSlowEnough && cursorRecentlyMoved) {
     triggerHoverAttack(now);
   }
 
@@ -792,8 +828,16 @@ function onMouseMove(e) {
 
   // update last mouse and velocity estimate
   const dt = Math.max(1, now - (RUNTIME.lastMouse.t || now)); // ms
+  RUNTIME.lastMoveGapMs = dt;
   const vx = (e.clientX - RUNTIME.lastMouse.x) * (1000 / dt); // px/s
   const vy = (e.clientY - RUNTIME.lastMouse.y) * (1000 / dt); // px/s
+  // Unsmoothed, so the hover gate below can read "how fast was this one
+  // movement" directly — RUNTIME.speedAvg is an EMA blended with whatever it
+  // was on the *previous* event, so a fast movement's second tick (first one
+  // with a normal small gap) still reads as a diluted blend of the previous
+  // (possibly stale-gap-deflated) value and the new true rate, understating
+  // it for a tick or two. This has no such carryover.
+  RUNTIME.lastMoveInstantSpeed = Math.hypot(vx, vy);
 
   // Time-based smoothing so direction/speed behave the same at any event
   // rate (browsers fire mousemove at 60–1000Hz; the desktop app feeds ~60Hz).
