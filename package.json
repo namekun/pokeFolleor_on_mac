@@ -8,6 +8,7 @@
     "parse": "node src/scripts/parse-anim.cjs",
     "build:index": "node src/scripts/build-pack-index.cjs",
     "build:ko-names": "node src/scripts/build-ko-names.cjs",
+    "build:evolutions": "node src/scripts/build-evolutions.cjs",
     "sync-version": "node src/scripts/sync-version.cjs",
     "app": "electron .",
     "app:smoke": "electron . --smoke",

@@ -215,6 +215,33 @@
       object-fit: contain;
     }
 
+    /* Growth: level + XP progress toward next evolution */
+    .growth { margin: 6px auto 0; width: 240px; }
+    .growthRow {
+      display: flex; justify-content: space-between; align-items: baseline;
+      font-weight: 800; font-size: 12px; margin-bottom: 4px;
+    }
+    #evolveHint { font-weight: 700; font-size: 11px; opacity: 0.75; }
+    .xpBarTrack {
+      height: 10px; border: 1.5px solid #000; border-radius: 6px;
+      background: #fff; overflow: hidden;
+    }
+    .xpBarFill { height: 100%; width: 0%; background: #EF4036; }
+
+    /* Branch evolution choice (e.g. Eevee) -- hidden unless pending */
+    .evolveChoice {
+      margin: 8px auto 0; width: 240px; text-align: center;
+      border: 1.5px solid #000; border-radius: 8px; padding: 8px;
+      background: #fff;
+    }
+    .evolveChoiceLabel { font-weight: 800; font-size: 11px; margin-bottom: 6px; }
+    .evolveChoiceButtons { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+    .evolveChoiceButtons button {
+      border: 1.5px solid #000; border-radius: 6px; background: #fff;
+      font-weight: 700; font-size: 11px; padding: 4px 8px; cursor: pointer;
+    }
+    .evolveChoiceButtons button:hover { background: #EF4036; color: #fff; }
+
     /* Controls layout: three columns */
     .triples { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; text-align: center; margin-top: 6px; }
     .triple h4 { font-size: 12px; letter-spacing: .02em; margin: 8px 0 8px; font-weight: 800; }
@@ -319,6 +346,21 @@
         <span class="sr-only">Shuffle Pokémon</span>
         <img class="shuffleIcon" src="../assets/ui/buttons/shuffle-icon.png" alt="" aria-hidden="true" />
       </button>
+    </div>
+
+    <!-- Growth: level + XP progress toward next evolution -->
+    <div class="growth">
+      <div class="growthRow">
+        <span id="levelLabel">Lv. 1</span>
+        <span id="evolveHint"></span>
+      </div>
+      <div class="xpBarTrack"><div class="xpBarFill" id="xpBarFill"></div></div>
+    </div>
+
+    <!-- Branch evolution choice (e.g. Eevee) -- hidden unless pending -->
+    <div class="evolveChoice" id="evolveChoice" hidden>
+      <div class="evolveChoiceLabel" id="evolveChoiceLabel">Choose evolution:</div>
+      <div class="evolveChoiceButtons" id="evolveChoiceButtons"></div>
     </div>
 
     <!-- Triple controls -->
