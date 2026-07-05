@@ -415,6 +415,13 @@ let growthLoaded = false;
 // an existing key's xp, so without this the old pre-evolution dex would
 // silently resurrect from storage instead of actually moving.
 const growthDeletions = new Set();
+// flushGrowth() does an async read-modify-write (storage.get then storage.set);
+// without serializing, two flushes fired close together (e.g. a level-up
+// flush racing the 30s interval) can both read the same stale "stored"
+// value before either write lands, and the second write clobbers the
+// first's result (lost update). See flushGrowth() for how these are used.
+let flushInFlight = false;
+let flushPending = false;
 let xpTimeAccMs = 0; // minutes-of-activity accumulator for the time-based XP source
 
 // { [dex3]: { to: [{ dex, level }] } } from evolutions.json (build:evolutions).
@@ -507,10 +514,24 @@ function persistPendingEvolution() {
 // stale tab flushing last must not roll a dex's xp backward.
 function flushGrowth() {
   if (!growthDirty || !growthLoaded) return;
+  // Serialize: if a flush is already mid-flight, don't start a second
+  // overlapping read-modify-write -- just note that another flush is needed
+  // and let the in-flight one's completion callback pick it up with
+  // whatever GROWTH/growthDeletions look like by then.
+  if (flushInFlight) { flushPending = true; return; }
   growthDirty = false;
+  flushInFlight = true;
   const toWrite = { ...GROWTH };
   const toDelete = new Set(growthDeletions);
   growthDeletions.clear();
+  const done = () => {
+    flushInFlight = false;
+    if (flushPending) {
+      flushPending = false;
+      growthDirty = true; // guarantee the deferred flush actually runs
+      flushGrowth();
+    }
+  };
   try {
     chrome.storage.sync.get(["vcp1_growth"], (res) => {
       const stored = res.vcp1_growth || {};
@@ -525,9 +546,11 @@ function flushGrowth() {
       for (const dex of toDelete) {
         if (!(dex in toWrite)) delete merged[dex];
       }
-      chrome.storage.sync.set({ vcp1_growth: merged });
+      chrome.storage.sync.set({ vcp1_growth: merged }, done);
     });
-  } catch (_) {}
+  } catch (_) {
+    done();
+  }
 }
 setInterval(flushGrowth, 30000);
 
@@ -572,6 +595,14 @@ function checkEvolution(dex3, level) {
 // both for an automatic single-path evolution and a user-chosen branch pick
 // (from Settings, via the "vcp1_evolve" runtime message below).
 function evolveTo(fromDex3, toDex3) {
+  // Reentrancy guard: a second trigger while a flash is already in progress
+  // (e.g. a double-clicked branch-choice button, both messages landing
+  // before PENDING_EVOLUTION clears at the end of the first flash) must not
+  // schedule a second pack-switch -- two overlapping setTimeout callbacks
+  // would race on GROWTH[fromDex3]/[toDex3], and the second one reads it
+  // *after* the first has already deleted it, silently zeroing the XP that
+  // was just moved.
+  if (EVOLVE.active) return;
   const targetId = PACK_INDEX_BY_DEX[toDex3];
   if (!targetId) return; // build:evolutions asserts every target exists in index.json; defensive no-op otherwise
   EVOLVE.active = true;

@@ -230,6 +230,11 @@ document.addEventListener("DOMContentLoaded", () => {
       btn.type = "button";
       btn.textContent = labelForOption(opt);
       btn.addEventListener("click", () => {
+        // Disable immediately -- content.js's own reentrancy guard is the
+        // real fix for a double-click, but the storage round-trip that
+        // clears PENDING_EVOLUTION (and re-hides this section) isn't
+        // instant, so a fast second click here shouldn't even get a chance to fire.
+        Array.from(evolveChoiceButtonsEl.querySelectorAll("button")).forEach((b) => { b.disabled = true; });
         try { chrome.runtime.sendMessage({ type: "vcp1_evolve", dex: choice.dex }); } catch (_) {}
       });
       evolveChoiceButtonsEl.appendChild(btn);
