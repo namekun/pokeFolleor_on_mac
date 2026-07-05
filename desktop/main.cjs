@@ -3,9 +3,24 @@
 const { app, BrowserWindow, Tray, Menu, screen, ipcMain, protocol, shell, nativeImage } = require("electron");
 const path = require("path");
 const fs = require("fs");
+const os = require("os");
 
 const ROOT = path.join(__dirname, "..");
 const SMOKE = process.argv.includes("--smoke");
+// Smoke runs force real settings (pack/mode/lang, see below) and must never
+// touch the developer's actual userData — otherwise every `npm run app:smoke`
+// clobbers the real settings.json with smoke-test values. Redirect userData
+// to a throwaway tmp dir before anything reads app.getPath("userData")
+// (must happen before app.whenReady()). Best-effort cleanup on exit; harmless
+// to skip since it's already under the OS tmp dir.
+let smokeUserDataDir = null;
+if (SMOKE) {
+  smokeUserDataDir = path.join(os.tmpdir(), `pokefollower-smoke-${process.pid}`);
+  app.setPath("userData", smokeUserDataDir);
+  process.on("exit", () => {
+    try { fs.rmSync(smokeUserDataDir, { recursive: true, force: true }); } catch (_) {}
+  });
+}
 // Dev/test-only: skip the real OS cursor feed so a CDP harness can drive the
 // overlay with synthetic mousemoves without the actual system cursor
 // injecting unrelated motion mid-test. No effect on `npm run app`/`app:smoke`.
