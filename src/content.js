@@ -218,7 +218,12 @@ function createFollower() {
     willChange: "transform, background-position, background-image",
     backgroundRepeat: "no-repeat",
     imageRendering: "pixelated", // crisp for retro sheets
-    transition: "transform 120ms linear, width 120ms linear, height 120ms linear"
+    // Only `transform` transitions (smooths scale/position changes). width/height
+    // must snap instantly with background-position/-image on every state switch —
+    // states can have differently-sized frames (e.g. attack vs idle), and easing
+    // the box size while the sprite crop snaps produces a torn/ghosted frame for
+    // the duration of the transition.
+    transition: "transform 120ms linear"
   });
   document.documentElement.appendChild(followerEl);
 }
