@@ -6,6 +6,10 @@ const fs = require("fs");
 
 const ROOT = path.join(__dirname, "..");
 const SMOKE = process.argv.includes("--smoke");
+// Dev/test-only: skip the real OS cursor feed so a CDP harness can drive the
+// overlay with synthetic mousemoves without the actual system cursor
+// injecting unrelated motion mid-test. No effect on `npm run app`/`app:smoke`.
+const NO_CURSOR_FEED = process.argv.includes("--no-cursor-feed");
 
 // serve repo files over poke://app/<path> so fetch() works (file:// blocks fetch)
 protocol.registerSchemesAsPrivileged([
@@ -339,7 +343,7 @@ app.whenReady().then(() => {
   // Smoke probes drive their own synthetic mousemove feed; the real OS cursor
   // (which may keep moving on the developer's machine during the run) would
   // otherwise inject unrelated motion into the same overlay and corrupt it.
-  if (!SMOKE) startCursorFeed();
+  if (!SMOKE && !NO_CURSOR_FEED) startCursorFeed();
 
   if (SMOKE) {
     // facing (~7.9s) + wander (up to 10s backstop) run back-to-back in the

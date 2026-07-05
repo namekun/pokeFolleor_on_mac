@@ -30,20 +30,32 @@ const RUNTIME = {
   speedAvg:  0
 };
 
-// --- wander mode: autonomous roam/pause/nap/attack FSM (mode === "wander") ---
+// --- wander mode: autonomous roam/pause/nap/sleep/attack FSM (mode === "wander") ---
 const WANDER = {
-  state: null,                 // "roam" | "pause" | "nap" | "attack" (null = not yet started)
+  state: null,                 // "roam" | "pause" | "nap" | "sleep" | "attack" (null = not yet started)
   until: 0,                    // performance.now() deadline for timed states (pause/nap)
+  sleepEnteredAt: 0,            // performance.now() when idle-triggered "sleep" was entered
   attackCyclesLeft: 0,
   lastDir: { x: 0, y: 0 }       // last travel vector; keeps facing during stationary states
 };
 
 // --- behavior thresholds ---
-const SLEEP_TIMEOUT_MS = 30000; // 30s of no movement -> sleep
+const SLEEP_TIMEOUT_MS = 30000; // 30s of no movement -> sleep (production value)
 const ARRIVE_RADIUS_PX = 6;     // close enough to target to call it "arrived" and settle into idle
 const SLOW_RADIUS_PX   = 60;    // ease walking speed down within this distance for a soft landing
 const VEL_DECAY_DELAY_MS = 80;  // no mousemove for this long -> start decaying velAvg toward zero
 const VEL_DECAY_TAU_MS   = 120; // exponential decay time constant once decaying
+
+// Test-only override: lets an automated harness (CDP) dial the idle-sleep
+// timeout down from its 30s production value for fast, deterministic tests.
+// Inert unless a test explicitly calls setSleepTimeoutMs() — normal browser
+// extension and desktop use never touch this, so production behavior is
+// always the full SLEEP_TIMEOUT_MS.
+let TEST_SLEEP_TIMEOUT_MS = null;
+function sleepTimeoutMs() { return TEST_SLEEP_TIMEOUT_MS ?? SLEEP_TIMEOUT_MS; }
+window.__VCP1_TEST_HOOKS__ = {
+  setSleepTimeoutMs(ms) { TEST_SLEEP_TIMEOUT_MS = (typeof ms === "number" && ms > 0) ? ms : null; }
+};
 
 function hasState(name) {
   return !!(RUNTIME.meta && RUNTIME.meta.states && RUNTIME.meta.states[name]);
@@ -334,6 +346,12 @@ function resetAnimationForNewPack() {
   // — restart the wander FSM fresh rather than leaving it stuck expecting an
   // animation name that no longer exists.
   WANDER.state = null;
+  // Same reasoning for hover-to-attack: drop any in-progress attack/cooldown
+  // bookkeeping tied to the old pack's sheet.
+  HOVER.active = false;
+  HOVER.inside = false;
+  HOVER.exitedSinceLastAttack = true;
+  HOVER.cooldownUntil = 0;
 }
 
 function applyFrame() {
@@ -396,7 +414,7 @@ function applyFrame() {
 function pickStateBySpeed() {
   const now = performance.now();
   // If the pack has a 'sleep' state and we've been inactive long enough, sleep.
-  if (hasState("sleep") && (now - RUNTIME.lastMoveTs) > SLEEP_TIMEOUT_MS) {
+  if (hasState("sleep") && (now - RUNTIME.lastMoveTs) > sleepTimeoutMs()) {
     return "sleep";
   }
   // Otherwise mirror the follower's own motion: walking while it's actually
@@ -507,17 +525,42 @@ function enterAttack() {
 // own independent roll (gated on the pack actually having that sheet), so if
 // a pack has no attack/sleep sheet those odds simply fall through to roam.
 function choosePostPause() {
-  if (hasState("attack") && Math.random() < ATTACK_CHANCE) { enterAttack(); return; }
+  // Skip the self-rolled attack while a hover-triggered attack is already
+  // playing (see the hover-to-attack section below) — avoids two independent
+  // attack cycles racing each other. The nap roll is unaffected.
+  if (!HOVER.active && hasState("attack") && Math.random() < ATTACK_CHANCE) { enterAttack(); return; }
   if (hasState("sleep") && Math.random() < NAP_CHANCE) { enterNap(); return; }
   enterRoam();
+}
+
+function enterIdleSleep(now) {
+  WANDER.state = "sleep";
+  WANDER.sleepEnteredAt = now;
+  RUNTIME.target.x = RUNTIME.pos.x;
+  RUNTIME.target.y = RUNTIME.pos.y;
 }
 
 // Advance the FSM's own timers/arrivals. "attack" is advanced separately, by
 // frame-cycle counting in tick()'s animation stepper below (it needs to count
 // sprite-sheet loops, not wall-clock time).
 function tickWander(now) {
+  // Idle-triggered sleep: falls asleep from wherever it currently is once the
+  // cursor has been stationary for sleepTimeoutMs() — same trigger/threshold
+  // as follow mode's pickStateBySpeed(), reused here. This is independent of
+  // the random NAP roll in choosePostPause(): NAP always wakes on its own
+  // timer regardless of cursor activity, while this sleeps for as long as the
+  // cursor stays put and wakes the instant it moves again. Never interrupts
+  // an in-progress attack.
+  if (hasState("sleep") && WANDER.state !== "sleep" && WANDER.state !== "attack" &&
+      (now - RUNTIME.lastMoveTs) > sleepTimeoutMs()) {
+    enterIdleSleep(now);
+    return;
+  }
+
   if (!WANDER.state) { enterRoam(); return; }
-  if (WANDER.state === "roam") {
+  if (WANDER.state === "sleep") {
+    if (RUNTIME.lastMoveTs > WANDER.sleepEnteredAt) enterRoam(); // cursor moved -> wake up
+  } else if (WANDER.state === "roam") {
     if (!RUNTIME.isWalking) enterPause(); // arrived at the waypoint last frame
   } else if (WANDER.state === "pause") {
     if (now >= WANDER.until) choosePostPause();
@@ -533,7 +576,8 @@ function tickWander(now) {
 function wanderDesiredState() {
   switch (WANDER.state) {
     case "roam":   return RUNTIME.isWalking ? "walk" : "idle";
-    case "nap":    return hasState("sleep") ? "sleep" : "idle";
+    case "nap":
+    case "sleep":  return hasState("sleep") ? "sleep" : "idle";
     case "attack": return hasState("attack") ? "attack" : "idle";
     case "pause":
     default:       return "idle";
@@ -554,8 +598,64 @@ window.addEventListener("resize", onViewportResize, { passive: true });
 // ever fires in the Chrome extension since nothing dispatches this event there.
 window.addEventListener("vcp1:world-updated", onViewportResize, { passive: true });
 
+// --- hover-to-attack: cursor-over-sprite trigger, independent of the
+// follow/wander FSM above so it behaves identically in both modes. This
+// section only owns containment/cooldown bookkeeping and start/end; tick()
+// applies the actual freeze + forced "attack" animation using HOVER.active.
+const HOVER_COOLDOWN_MS = 2000; // floor before a new attack can start, on top of the exit+re-entry requirement below
+const HOVER = {
+  inside: false,                // cursor is within the current frame's rendered box
+  exitedSinceLastAttack: true,  // must go true (cursor left the box) before retriggering
+  cooldownUntil: 0,             // performance.now() floor before a new attack can start
+  active: false,                // an attack cycle triggered by hover is currently playing
+  cyclesLeft: 0,
+  until: 0                      // wall-clock backstop, mirrors enterAttack()'s pattern
+};
+
+function updateHover(now) {
+  if (!hasState("attack")) { HOVER.inside = false; return; } // no attack sheet -> ignore hover entirely
+  const st = RUNTIME.meta.states[RUNTIME.anim.name] || RUNTIME.meta.states.idle;
+  const halfW = (st.frame.w * CONFIG.scale) / 2;
+  const halfH = (st.frame.h * CONFIG.scale) / 2;
+  const inside = Math.abs(RUNTIME.lastMouse.x - RUNTIME.pos.x) <= halfW &&
+                 Math.abs(RUNTIME.lastMouse.y - RUNTIME.pos.y) <= halfH;
+
+  if (!inside) HOVER.exitedSinceLastAttack = true;
+
+  const enteringNow = inside && !HOVER.inside;
+  if (!HOVER.active && enteringNow && HOVER.exitedSinceLastAttack && now >= HOVER.cooldownUntil) {
+    triggerHoverAttack(now);
+  }
+
+  // Wall-clock backstop: end even if frame-cycle counting in tick() never
+  // gets a chance to run (e.g. the sheet/fps disappear out from under it).
+  if (HOVER.active && now >= HOVER.until) endHoverAttack(now);
+
+  HOVER.inside = inside;
+}
+
+function triggerHoverAttack(now) {
+  HOVER.active = true;
+  HOVER.exitedSinceLastAttack = false;
+  HOVER.cyclesLeft = 1;
+  const st = RUNTIME.meta.states.attack;
+  const cycleMs = (st && st.fps) ? (st.frames / st.fps) * 1000 : 1000;
+  HOVER.until = now + cycleMs + 1000;
+}
+
+function endHoverAttack(now) {
+  HOVER.active = false;
+  HOVER.cooldownUntil = now + HOVER_COOLDOWN_MS;
+  // A hover mid-nap should wake the wander FSM, not let it resume napping the
+  // instant the attack ends — idle-triggered "sleep" already wakes on its own
+  // (see tickWander) since the hover's mousemove just refreshed lastMoveTs.
+  if (STATE.mode === "wander" && WANDER.state === "nap") enterRoam();
+}
+
 function tick(dtMs) {
   const now = performance.now();
+
+  updateHover(now);
 
   if (STATE.mode === "wander") {
     tickWander(now);
@@ -579,11 +679,19 @@ function tick(dtMs) {
     computeTarget();
   }
 
+  // Hover-triggered attack freezes the follower in place, regardless of mode —
+  // overriding whatever target the branch above just computed.
+  if (HOVER.active) {
+    RUNTIME.target.x = RUNTIME.pos.x;
+    RUNTIME.target.y = RUNTIME.pos.y;
+  }
+
   const dx = RUNTIME.target.x - RUNTIME.pos.x;
   const dy = RUNTIME.target.y - RUNTIME.pos.y;
   const dist = Math.hypot(dx, dy);
 
-  const desired = STATE.mode === "wander" ? wanderDesiredState() : pickStateBySpeed();
+  let desired = STATE.mode === "wander" ? wanderDesiredState() : pickStateBySpeed();
+  if (HOVER.active) desired = "attack";
   if (desired !== RUNTIME.anim.name) {
     // Queue the switch; wait for current cycle to finish before committing
     if (!RUNTIME.pendingState || RUNTIME.pendingState.name !== desired) {
@@ -634,6 +742,10 @@ function tick(dtMs) {
     if (STATE.mode === "wander" && WANDER.state === "attack" && RUNTIME.anim.name === "attack" && RUNTIME.anim.frame < prevFrame) {
       WANDER.attackCyclesLeft -= 1;
       if (WANDER.attackCyclesLeft <= 0) enterPause();
+    }
+    if (HOVER.active && RUNTIME.anim.name === "attack" && RUNTIME.anim.frame < prevFrame) {
+      HOVER.cyclesLeft -= 1;
+      if (HOVER.cyclesLeft <= 0) endHoverAttack(now);
     }
   }
 
