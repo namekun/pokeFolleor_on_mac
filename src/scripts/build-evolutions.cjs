@@ -13,6 +13,14 @@
 //   - min_happiness set (friendship)      -> 30
 //   - anything else (location/time/move/etc. special conditions) -> 36
 // Only edges where BOTH species are within gen1-4 (dex <= 493) are kept.
+//
+// A source entry gets `baby: true` when PokeAPI flags that species
+// is_baby (Pichu, Cleffa, Togepi, Tyrogue, ...). Consumers (content.js's
+// isLockedDex, popup.js's lock UI) use this to except a baby's own
+// immediate evolution from the lock policy -- e.g. Pikachu is selectable
+// from the start even though it's Pichu's evolution result, since in normal
+// play nobody starts with a baby (it only appears via breeding); Raichu
+// (Pikachu's own evolution) stays locked as usual.
 
 const fs = require("fs");
 const path = require("path");
@@ -121,8 +129,10 @@ async function main() {
   const dexList = [...dexSet].sort((a, b) => a - b);
   console.log(`Resolving evolution chains for ${dexList.length} gen1-4 species...`);
 
-  // Phase 1: species -> evolution_chain id (dedup: many species share one chain)
+  // Phase 1: species -> evolution_chain id (dedup: many species share one chain),
+  // plus is_baby (free on the same response -- no extra requests).
   const chainIds = new Set();
+  const babyDex = new Set();
   const failedSpecies = [];
   {
     let cursor = 0;
@@ -134,6 +144,7 @@ async function main() {
           const chainId = idFromUrl(species.evolution_chain && species.evolution_chain.url);
           if (Number.isFinite(chainId)) chainIds.add(chainId);
           else failedSpecies.push(dex);
+          if (species.is_baby) babyDex.add(dex);
         } catch (err) {
           failedSpecies.push(dex);
           console.error(`species ${dex}: ${err.message}`);
@@ -188,6 +199,17 @@ async function main() {
   }
   if (droppedTargets) console.log(`Dropped ${droppedTargets} target(s) missing from index.json.`);
 
+  // Flag baby source entries (see the file-header comment) -- baby first in
+  // insertion order purely for readability of the emitted JSON.
+  let babyEntries = 0;
+  for (const dex of babyDex) {
+    const key = pad3(dex);
+    if (results[key]) {
+      results[key] = { baby: true, to: results[key].to };
+      babyEntries++;
+    }
+  }
+
   // Manual serialization with numerically-sorted keys: JSON.stringify on a
   // plain object hoists integer-like keys ("100") ahead of leading-zero keys
   // ("001"), same pitfall documented in build-ko-names.cjs.
@@ -197,7 +219,7 @@ async function main() {
 
   const totalEdges = keys.reduce((sum, k) => sum + results[k].to.length, 0);
   const branchCount = keys.filter((k) => results[k].to.length > 1).length;
-  console.log(`Wrote ${OUT_FILE}: ${keys.length} species with evolutions, ${totalEdges} edges, ${branchCount} branching.`);
+  console.log(`Wrote ${OUT_FILE}: ${keys.length} species with evolutions, ${totalEdges} edges, ${branchCount} branching, ${babyEntries} baby sources.`);
 }
 
 main();

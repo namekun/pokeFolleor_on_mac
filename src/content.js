@@ -471,8 +471,13 @@ async function loadEvolutionData() {
   PACK_INDEX_BY_DEX = byDex;
 }
 
+// A dex is locked iff *some non-baby* source evolves into it -- a baby's own
+// immediate evolution (e.g. Pichu -> Pikachu) is exempt: nobody starts with
+// a baby (it only appears via breeding), so its result is selectable from
+// the start. The baby's own further evolution (e.g. Pikachu -> Raichu)
+// still locks normally, since that source isn't itself a baby.
 function isLockedDex(dex3) {
-  return Object.values(EVOLUTIONS).some((e) => e.to.some((t) => t.dex === dex3));
+  return Object.values(EVOLUTIONS).some((e) => !e.baby && e.to.some((t) => t.dex === dex3));
 }
 
 function hydrateGrowthState(res) {

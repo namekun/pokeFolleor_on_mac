@@ -162,7 +162,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await res.json();
       if (data && typeof data === "object") {
         EVOLUTIONS = data;
+        // A baby's own immediate evolution (e.g. Pichu -> Pikachu) is exempt
+        // from the lock: nobody starts with a baby (it only appears via
+        // breeding), so its result is selectable from the start. The baby's
+        // own further evolution (e.g. Pikachu -> Raichu) still locks as usual.
         for (const key of Object.keys(data)) {
+          if (data[key].baby) continue;
           for (const t of (data[key].to || [])) LOCKED_DEX.add(t.dex);
         }
       }
