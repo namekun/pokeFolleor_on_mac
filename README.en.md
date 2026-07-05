@@ -23,6 +23,31 @@ whole desktop — over every app, not just the browser.
   cursor. It walks to a random point, then rests for 2–8 seconds; during that
   rest it has a 10% chance to nap (packs with a sleep state only) and a 15%
   chance to play an attack motion in place (packs with an attack state only).
+  Just like Follow mode, if the cursor sits still for 30 seconds it falls
+  asleep right where it's standing (again, packs with a sleep animation
+  only), and wakes the instant the cursor moves again.
+- **Hover attack** — hold the cursor still over the sprite and it plays an
+  attack animation (packs with an attack animation only). Passing over it
+  quickly is deliberately ignored, so a stray brush of the cursor never sets
+  off an attack by accident. After an attack there's about a 2-second
+  cooldown, and the cursor has to leave the sprite and come back before it
+  can trigger again. Hovering over it while it's asleep wakes it up and it
+  attacks right back.
+- **Growth & evolution** — every Pokémon grows by earning its own XP.
+  - Time spent together, actual distance travelled, and interactions like
+    hover attacks all contribute XP, tracked separately per Pokémon.
+  - Evolution levels match the games (e.g. Bulbasaur evolves into Ivysaur at
+    Lv.16). Pokémon that evolve by stone, trade, or friendship in the games
+    get an equivalent level threshold in this system instead.
+  - Reaching the level triggers an automatic evolution with a brief flash
+    effect. Branching Pokémon like Eevee don't evolve automatically —
+    instead Settings waits for you to pick which evolution you want.
+  - Evolved forms you haven't unlocked yet show up 🔒-locked in the list and
+    are excluded from search and shuffle — you have to actually evolve into
+    them to be able to pick them. The one exception: a baby Pokémon's own
+    first evolution (like Pikachu or Jigglypuff) is selectable from the
+    start, since nobody begins with a baby Pokémon in the first place —
+    they only ever show up through breeding.
 - **Multi-display** — one overlay per connected display, and the sprite
   actually walks across display boundaries instead of teleporting.
 - **493 Pokémon** (generations 1–4, national dex #001 Bulbasaur through #493
@@ -110,7 +135,12 @@ Clicking the Pokéball icon in the menu bar opens:
 The **Settings…** window shows the same UI as the browser extension popup:
 
 - **Pick a Pokémon** — select from the list, **search** by name or Pokédex
-  number, or **shuffle** for a random one.
+  number, or **shuffle** for a random one. Evolved forms you haven't unlocked
+  yet show up 🔒-locked and are left out of search and shuffle.
+- **Level / XP** — shows the current Pokémon's level, its XP progress toward
+  the next level (the XP bar), and what it takes to evolve next. If a
+  branching Pokémon like Eevee becomes eligible, buttons appear for picking
+  which evolution you want.
 - **Mode (Follow / Wander)** — switch between Follow, which trails your
   cursor, and Wander, which roams the screen on its own.
 - **SCALE** — how large the sprite is drawn.
