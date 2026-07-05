@@ -44,16 +44,49 @@ function storageSet(area, patch) {
   if (area === "sync" && "vcp1_enabled" in patch) refreshTray();
 }
 
-let overlayWin = null;
+// One overlay window per display: the display running the "engine" role
+// loads overlay.html (the real src/content.js follow/wander FSM, in global
+// desktop coordinates); every other display loads mirror.html, a dumb
+// render-only window that repaints whatever sprite snapshot the engine
+// broadcasts. This lets the sprite walk across a display boundary instead of
+// the old single-overlay design, which teleported the whole window to
+// whichever display the cursor was on.
+let winsByDisplayId = new Map(); // displayId -> BrowserWindow (role tagged via win.__vcp1Role)
 let settingsWin = null;
 let tray = null;
 let cursorTimer = null;
-let overlayDisplayId = null;
+let engineDisplayId = null;
 
-function createOverlay() {
-  const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
-  overlayDisplayId = display.id;
-  overlayWin = new BrowserWindow({
+function unionOfDisplays(displays) {
+  const rects = displays.map((d) => ({ x: d.bounds.x, y: d.bounds.y, w: d.bounds.width, h: d.bounds.height }));
+  const x1 = Math.min(...rects.map((r) => r.x));
+  const y1 = Math.min(...rects.map((r) => r.y));
+  const x2 = Math.max(...rects.map((r) => r.x + r.w));
+  const y2 = Math.max(...rects.map((r) => r.y + r.h));
+  return { rects, union: { x: x1, y: y1, w: x2 - x1, h: y2 - y1 } };
+}
+
+function worldPayloadForDisplayId(displayId) {
+  const displays = screen.getAllDisplays();
+  const { rects, union } = unionOfDisplays(displays);
+  const target = displays.find((d) => d.id === displayId) || screen.getPrimaryDisplay();
+  return {
+    displays: rects,
+    union,
+    origin: { x: target.bounds.x, y: target.bounds.y },
+    isEngine: displayId === engineDisplayId
+  };
+}
+
+function broadcastWorld() {
+  for (const [id, win] of winsByDisplayId) {
+    if (win.isDestroyed()) continue;
+    win.webContents.send("vcp1:world", worldPayloadForDisplayId(id));
+  }
+}
+
+function createDisplayWindow(display, isEngine) {
+  const win = new BrowserWindow({
     ...display.bounds,
     show: false,
     frame: false,
@@ -65,36 +98,73 @@ function createOverlay() {
     skipTaskbar: true,
     fullscreenable: false,
     webPreferences: {
-      preload: path.join(__dirname, "shim-preload.cjs"),
+      preload: path.join(__dirname, isEngine ? "shim-preload.cjs" : "mirror-preload.cjs"),
       contextIsolation: false,
       sandbox: false,
       nodeIntegration: false,
       backgroundThrottling: false
     }
   });
-  overlayWin.setIgnoreMouseEvents(true);
-  overlayWin.setAlwaysOnTop(true, "screen-saver");
-  overlayWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  overlayWin.loadURL(`poke://app/desktop/overlay.html${SMOKE ? "?smoke=1" : ""}`);
-  overlayWin.once("ready-to-show", () => overlayWin.showInactive());
-  overlayWin.on("closed", () => { overlayWin = null; });
+  win.__vcp1Role = isEngine ? "engine" : "mirror";
+  win.__vcp1DisplayId = display.id;
+  win.setIgnoreMouseEvents(true);
+  win.setAlwaysOnTop(true, "screen-saver");
+  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  const page = isEngine ? "overlay.html" : "mirror.html";
+  win.loadURL(`poke://app/desktop/${page}${SMOKE ? "?smoke=1" : ""}`);
+  win.once("ready-to-show", () => win.showInactive());
+  win.on("closed", () => {
+    if (winsByDisplayId.get(display.id) === win) winsByDisplayId.delete(display.id);
+  });
+  return win;
 }
 
-// Follow the cursor across displays: keep the overlay on the display under the
-// cursor and feed cursor position (in window-local coords) to the renderer.
+// (Re)build one overlay window per connected display. Runs at startup and on
+// every hotplug (display-added/removed/metrics-changed). The engine role
+// stays pinned to whichever display it's already on; it's only reselected
+// (preferring the primary display) if that display disconnects — so a window
+// unrelated to the engine reshuffle is left alone (just re-bounded in case its
+// resolution/position changed) rather than torn down and rebuilt every time.
+function rebuildWindows() {
+  const displays = screen.getAllDisplays();
+  const currentIds = new Set(displays.map((d) => d.id));
+
+  if (engineDisplayId == null || !currentIds.has(engineDisplayId)) {
+    const primary = screen.getPrimaryDisplay();
+    engineDisplayId = currentIds.has(primary.id) ? primary.id : (displays[0] ? displays[0].id : null);
+  }
+
+  for (const [id, win] of winsByDisplayId) {
+    if (!currentIds.has(id)) {
+      if (!win.isDestroyed()) win.destroy();
+      winsByDisplayId.delete(id);
+    }
+  }
+
+  for (const display of displays) {
+    const wantEngine = display.id === engineDisplayId;
+    const existing = winsByDisplayId.get(display.id);
+    if (existing && !existing.isDestroyed() && existing.__vcp1Role === (wantEngine ? "engine" : "mirror")) {
+      existing.setBounds(display.bounds);
+      continue;
+    }
+    if (existing && !existing.isDestroyed()) existing.destroy();
+    winsByDisplayId.set(display.id, createDisplayWindow(display, wantEngine));
+  }
+
+  broadcastWorld();
+}
+
+// Feed the engine window the raw global cursor position (~60Hz) — no more
+// window-hopping: the engine's own content.js walks the follower across
+// display boundaries using this same global coordinate space (see
+// applyFrame()'s origin-offset render step).
 function startCursorFeed() {
   cursorTimer = setInterval(() => {
-    if (!overlayWin || overlayWin.isDestroyed()) return;
+    const win = winsByDisplayId.get(engineDisplayId);
+    if (!win || win.isDestroyed()) return;
     const pt = screen.getCursorScreenPoint();
-    const display = screen.getDisplayNearestPoint(pt);
-    if (display.id !== overlayDisplayId) {
-      overlayDisplayId = display.id;
-      overlayWin.setBounds(display.bounds);
-    }
-    overlayWin.webContents.send("vcp1:cursor", {
-      x: pt.x - display.bounds.x,
-      y: pt.y - display.bounds.y
-    });
+    win.webContents.send("vcp1:cursor", { x: pt.x, y: pt.y });
   }, 16); // ~60Hz
 }
 
@@ -165,9 +235,31 @@ ipcMain.on("vcp1:message", (e, msg) => {
     }
   }
 });
+
+// --- IPC: multi-display world + sprite-snapshot relay (engine -> mirrors) ---
+ipcMain.handle("vcp1:world-get", (e) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  const displayId = win && win.__vcp1DisplayId != null ? win.__vcp1DisplayId : engineDisplayId;
+  return worldPayloadForDisplayId(displayId);
+});
+ipcMain.on("vcp1:snapshot", (_e, snap) => {
+  for (const [id, win] of winsByDisplayId) {
+    if (id === engineDisplayId || win.isDestroyed()) continue;
+    win.webContents.send("vcp1:snapshot", snap);
+  }
+});
+
 const smokePassed = new Set();
+function requiredSmokeChecks() {
+  const base = ["overlay", "settings", "facing", "lang", "wander"];
+  // A mirror window only exists (and only ever will broadcast "mirror") when
+  // more than one display is connected — gating on it unconditionally would
+  // hang single-display CI/dev runs forever.
+  if (screen.getAllDisplays().length > 1) base.push("mirror");
+  return base;
+}
 function smokeCheckDone() {
-  if (smokePassed.has("overlay") && smokePassed.has("settings") && smokePassed.has("facing") && smokePassed.has("lang") && smokePassed.has("wander")) {
+  if (requiredSmokeChecks().every((k) => smokePassed.has(k))) {
     console.log("SMOKE_OK");
     app.exit(0);
   }
@@ -240,7 +332,10 @@ app.whenReady().then(() => {
 
   if (app.dock) app.dock.hide(); // menu-bar utility; no Dock icon
   createTray();
-  createOverlay();
+  rebuildWindows();
+  screen.on("display-added", rebuildWindows);
+  screen.on("display-removed", rebuildWindows);
+  screen.on("display-metrics-changed", rebuildWindows);
   // Smoke probes drive their own synthetic mousemove feed; the real OS cursor
   // (which may keep moving on the developer's machine during the run) would
   // otherwise inject unrelated motion into the same overlay and corrupt it.

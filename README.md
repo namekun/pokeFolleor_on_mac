@@ -52,10 +52,12 @@ menu you can:
 
 Once enabled, the sprite:
 
-- rides on a **click-through overlay** that never steals focus, so it floats over
-  your work without getting in the way,
-- **follows your cursor across displays**, hopping to whichever monitor the cursor
-  is on,
+- rides on a **click-through overlay** on every connected display, one window
+  each, that never steals focus, so it floats over your work without getting
+  in the way,
+- **follows your cursor across displays**, walking across the boundary onto
+  whichever monitor the cursor is on instead of jumping there,
+- **wanders across your whole desktop** in wander mode, not just one screen,
 - and **falls asleep after ~30 seconds** of no cursor movement, waking up when you
   move again (for packs that include a sleep animation).
 
@@ -108,14 +110,25 @@ desktop app.
 The desktop app deliberately **reuses the extension's `src/` code unmodified**.
 A thin Electron layer stands in for the parts of Chrome the extension expects:
 
-- **`desktop/main.cjs`** — the Electron wrapper: creates the transparent
-  overlay window, feeds it the cursor position (~60 Hz, in window-local coords),
-  hops the overlay between displays, builds the tray menu, and opens the Settings
-  window.
-- **`desktop/shim-preload.cjs`** — a small `chrome.*` shim. It implements
-  `chrome.storage.sync/local` (`get`/`set`/`onChanged`) and
-  `chrome.runtime` (`getURL`/`sendMessage`/`onMessage`/`id`) over Electron IPC, so
-  `src/popup` and `src/content.js` run without any changes.
+- **`desktop/main.cjs`** — the Electron wrapper: creates one overlay window per
+  display, feeds the "engine" display's window the raw cursor position (~60 Hz,
+  in global desktop coordinates), reconfigures the windows on display
+  hotplug, builds the tray menu, and opens the Settings window.
+- **`desktop/shim-preload.cjs`** — a small `chrome.*` shim, loaded by the engine
+  and Settings windows. It implements `chrome.storage.sync/local`
+  (`get`/`set`/`onChanged`) and `chrome.runtime`
+  (`getURL`/`sendMessage`/`onMessage`/`id`) over Electron IPC, so `src/popup`
+  and `src/content.js` run without any changes. It also pushes the
+  multi-display layout (`window.__VCP1_WORLD__`) into the page and relays the
+  engine's per-frame sprite snapshot to `main.cjs` for the mirror windows.
+- **`desktop/mirror.html` / `mirror-preload.cjs` / `mirror-render.js`** — every
+  display *except* the one running the engine loads these instead of
+  `overlay.html`. They carry no follow/wander logic at all: `main.cjs`
+  broadcasts the engine's per-frame sprite snapshot (position, sheet, frame),
+  and `mirror-render.js` just repaints an identical-looking sprite element at
+  that position translated into its own display's local coordinates — so the
+  sprite is never running two independent physics simulations, only one engine
+  with N passive views of it.
 - **`poke://` protocol** — repo files are served over a custom `poke://app/<path>`
   scheme so `fetch()` works for pack JSON and assets (the `file://` scheme blocks
   fetch).

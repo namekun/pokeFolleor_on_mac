@@ -48,6 +48,18 @@ const VEL_DECAY_TAU_MS   = 120; // exponential decay time constant once decaying
 function hasState(name) {
   return !!(RUNTIME.meta && RUNTIME.meta.states && RUNTIME.meta.states[name]);
 }
+
+// --- multi-display world (desktop app only) ---
+// The desktop shim injects window.__VCP1_WORLD__ = { displays: [{x,y,w,h}...],
+// union: {x,y,w,h}, origin: {x,y} } describing the full macOS desktop in
+// global coordinates and this window's own local-origin offset. When absent
+// (the Chrome extension, or before the desktop app's first IPC round trip),
+// every call site below falls back to the existing window.innerWidth/Height
+// viewport-only behavior — browser semantics are untouched.
+function getWorldInfo() {
+  const w = window.__VCP1_WORLD__;
+  return (w && Array.isArray(w.displays) && w.displays.length) ? w : null;
+}
 // --- UI-configurable tuning (persisted in chrome.storage.sync) ---
 const CONFIG = {
   scale: 1.25,   // visual scale multiplier
@@ -336,9 +348,10 @@ function applyFrame() {
   const bpx = -(frame * w);
   const bpy = -(rowIndex * h);
 
+  const sheetUrl = sheetUrlFor(RUNTIME.anim.name);
   followerEl.style.width  = `${w}px`;
   followerEl.style.height = `${h}px`;
-  followerEl.style.backgroundImage = `url("${sheetUrlFor(RUNTIME.anim.name)}")`;
+  followerEl.style.backgroundImage = `url("${sheetUrl}")`;
   // Keep sheet at natural size so backgroundPosition aligns to frame pixels
   const img = RUNTIME.images[RUNTIME.anim.name];
   if (img?.naturalWidth && img?.naturalHeight) {
@@ -348,12 +361,36 @@ function applyFrame() {
   followerEl.style.imageRendering = "pixelated";
   followerEl.style.backgroundPosition = `${bpx}px ${bpy}px`;
 
+  // RUNTIME.pos is in global desktop coordinates when a world provider is
+  // present (see getWorldInfo); this window's own DOM viewport only spans its
+  // one display, so translate global -> local by subtracting this window's
+  // origin before painting. Origin is {0,0} in the browser (no provider) or
+  // before the desktop app's first world round trip, leaving pos unchanged.
+  const world = getWorldInfo();
+  const originX = world ? world.origin.x : 0;
+  const originY = world ? world.origin.y : 0;
+  const localX = RUNTIME.pos.x - originX;
+  const localY = RUNTIME.pos.y - originY;
+
   const SCALE_VAL = CONFIG.scale;
   followerEl.style.transform =
-    `translate(${Math.round(RUNTIME.pos.x)}px, ${Math.round(RUNTIME.pos.y)}px) ` +
+    `translate(${Math.round(localX)}px, ${Math.round(localY)}px) ` +
     `translate(-50%, -50%) ` +
     `scale(${SCALE_VAL})`;
   followerEl.style.transformOrigin = "center center";
+
+  // Desktop app only: hand a snapshot of what was just painted to any mirror
+  // windows on other displays, so they can render the same sprite without
+  // running this engine themselves. Undefined (and this whole block skipped)
+  // in the Chrome extension and in the desktop app's own engine-less windows.
+  if (window.__VCP1_SNAPSHOT_SINK__) {
+    window.__VCP1_SNAPSHOT_SINK__({
+      x: RUNTIME.pos.x, y: RUNTIME.pos.y,
+      w, h, bgImage: sheetUrl, bpx, bpy,
+      bgSizeW: img?.naturalWidth || 0, bgSizeH: img?.naturalHeight || 0,
+      scale: SCALE_VAL
+    });
+  }
 }
 
 function pickStateBySpeed() {
@@ -388,6 +425,19 @@ function getSpriteMargin() {
 
 function clampToViewport(pt) {
   const margin = getSpriteMargin();
+  const world = getWorldInfo();
+  if (world) {
+    // Clamp into the bounding box of every display combined. Not perfect for
+    // gaps between non-adjacent monitors, but this only runs as a safety net
+    // on world changes (resize/hotplug) — normal roam waypoints are sampled
+    // per-display below, which avoids the dead space this box can contain.
+    const { x, y, w, h } = world.union;
+    const maxX = Math.max(x + margin, x + w - margin);
+    const maxY = Math.max(y + margin, y + h - margin);
+    pt.x = Math.min(Math.max(pt.x, x + margin), maxX);
+    pt.y = Math.min(Math.max(pt.y, y + margin), maxY);
+    return;
+  }
   const maxX = Math.max(margin, window.innerWidth - margin);
   const maxY = Math.max(margin, window.innerHeight - margin);
   pt.x = Math.min(Math.max(pt.x, margin), maxX);
@@ -396,6 +446,24 @@ function clampToViewport(pt) {
 
 function pickRoamWaypoint() {
   const margin = getSpriteMargin();
+  const world = getWorldInfo();
+  if (world) {
+    // Sample a real display rect (area-weighted) rather than the union
+    // bounding box, so waypoints never land in the dead space between
+    // non-aligned monitors.
+    const rects = world.displays;
+    const weights = rects.map((r) => Math.max(1, r.w * r.h));
+    const total = weights.reduce((a, b) => a + b, 0);
+    let roll = Math.random() * total;
+    let chosen = rects[rects.length - 1];
+    for (let i = 0; i < rects.length; i++) {
+      roll -= weights[i];
+      if (roll <= 0) { chosen = rects[i]; break; }
+    }
+    const loX = chosen.x + margin, hiX = Math.max(loX, chosen.x + chosen.w - margin);
+    const loY = chosen.y + margin, hiY = Math.max(loY, chosen.y + chosen.h - margin);
+    return { x: randRange(loX, hiX), y: randRange(loY, hiY) };
+  }
   const maxX = Math.max(margin, window.innerWidth - margin);
   const maxY = Math.max(margin, window.innerHeight - margin);
   return { x: randRange(margin, maxX), y: randRange(margin, maxY) };
@@ -480,6 +548,11 @@ function onViewportResize() {
   clampToViewport(RUNTIME.target);
 }
 window.addEventListener("resize", onViewportResize, { passive: true });
+// Desktop app only: displays connect/disconnect/rearrange independently of any
+// window resize. The shim dispatches this whenever window.__VCP1_WORLD__ is
+// (re)pushed, so wander's clamp reruns against the new layout. No listener
+// ever fires in the Chrome extension since nothing dispatches this event there.
+window.addEventListener("vcp1:world-updated", onViewportResize, { passive: true });
 
 function tick(dtMs) {
   const now = performance.now();
@@ -577,6 +650,7 @@ function tick(dtMs) {
 function teardownInvalidatedContext() {
   window.removeEventListener("mousemove", onMouseMove);
   window.removeEventListener("resize", onViewportResize);
+  window.removeEventListener("vcp1:world-updated", onViewportResize);
   stopLocalPoll();
   removeFollower();
   running = false;

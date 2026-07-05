@@ -49,6 +49,27 @@ ipcRenderer.on("vcp1:message", (_e, msg) => {
   }
 });
 
+// Multi-display world: main.cjs computes every display's global rect, the
+// union of all of them, and this window's own local-origin offset, then
+// pushes it here whenever the layout changes (startup, hotplug). content.js
+// reads window.__VCP1_WORLD__ (see getWorldInfo()) and falls back to
+// window.innerWidth/Height when it's absent — this only matters for the
+// desktop app's engine window; the popup/settings window ignores it.
+ipcRenderer.invoke("vcp1:world-get").then((world) => {
+  window.__VCP1_WORLD__ = world;
+  window.dispatchEvent(new Event("vcp1:world-updated"));
+});
+ipcRenderer.on("vcp1:world", (_e, world) => {
+  window.__VCP1_WORLD__ = world;
+  window.dispatchEvent(new Event("vcp1:world-updated"));
+});
+
+// Engine-only hook: content.js's applyFrame() calls this every frame with a
+// snapshot of what it just painted (global position + sprite sheet/frame), so
+// main.cjs can relay it to mirror windows on other displays. Harmless/unused
+// in the settings window, which never runs content.js.
+window.__VCP1_SNAPSHOT_SINK__ = (snap) => { ipcRenderer.send("vcp1:snapshot", snap); };
+
 // Overlay only: turn main-process cursor samples into the mousemove events
 // content.js already listens for. Dispatch only when the cursor actually
 // moved — a browser fires no mousemove while idle, and content.js relies on
@@ -202,12 +223,24 @@ function smokeWanderProbe() {
       let last = readFollowerPos();
       let moved = 0;
       const poll = setInterval(() => {
-        const vw = window.innerWidth, vh = window.innerHeight;
+        // readFollowerPos() returns this window's LOCAL transform coords
+        // (applyFrame() subtracts this engine window's own origin — see
+        // content.js). In the multi-display app the follower is meant to
+        // wander across every display, so it will legitimately go outside
+        // this one window's own local viewport; convert back to global via
+        // the world's origin and bound-check against the union of every
+        // display instead of window.innerWidth/Height. No world provider
+        // (or single-display) means union collapses to this viewport, same
+        // as the original single-window check.
+        const world = window.__VCP1_WORLD__;
+        const origin = world?.origin || { x: 0, y: 0 };
+        const bounds = world?.union || { x: 0, y: 0, w: window.innerWidth, h: window.innerHeight };
         const p = readFollowerPos();
         if (p) {
-          if (p.x < -1 || p.x > vw + 1 || p.y < -1 || p.y > vh + 1) {
+          const gx = p.x + origin.x, gy = p.y + origin.y;
+          if (gx < bounds.x - 1 || gx > bounds.x + bounds.w + 1 || gy < bounds.y - 1 || gy > bounds.y + bounds.h + 1) {
             clearInterval(poll);
-            ipcRenderer.send("vcp1:smoke-wander", `fail:oob:${JSON.stringify(p)}`);
+            ipcRenderer.send("vcp1:smoke-wander", `fail:oob:${JSON.stringify({ gx, gy, bounds })}`);
             return;
           }
           if (last) moved += Math.hypot(p.x - last.x, p.y - last.y);
