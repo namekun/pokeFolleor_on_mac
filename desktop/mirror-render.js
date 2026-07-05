@@ -6,6 +6,65 @@
 // display-local space and copy the same CSS a real follower element would
 // have (see content.js's applyFrame(), which this mirrors style-for-style).
 let el = null;
+// Mirrors content.js's MOOD_BUBBLE_PX/MOOD_FADE_MS -- kept in sync manually
+// (no shared module system in this codebase, same as e.g. popup.js's
+// duplicated LEVEL_XP_BASE). Only the *appearance* needs to match; the
+// engine is the one deciding *when* to show/fade (see applySnapshot below).
+const MOOD_BUBBLE_PX = 44;
+const MOOD_PORTRAIT_PX = 30;
+const MOOD_FADE_MS = 400;
+let moodEl = null;
+function ensureMoodEl() {
+  if (moodEl) return moodEl;
+  moodEl = document.createElement("div");
+  moodEl.id = "__vcp1_mood_bubble";
+  Object.assign(moodEl.style, {
+    position: "fixed",
+    left: "0px",
+    top: "0px",
+    width: `${MOOD_BUBBLE_PX}px`,
+    height: `${MOOD_BUBBLE_PX}px`,
+    borderRadius: "50%",
+    background: "#fff",
+    border: "2px solid rgba(0,0,0,0.15)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
+    backgroundRepeat: "no-repeat",
+    backgroundPosition: "center",
+    backgroundSize: `${MOOD_PORTRAIT_PX}px ${MOOD_PORTRAIT_PX}px`,
+    imageRendering: "pixelated",
+    pointerEvents: "none",
+    zIndex: "2147483647",
+    display: "none",
+    opacity: "0",
+    transition: `opacity ${MOOD_FADE_MS}ms ease-out`
+  });
+  document.documentElement.appendChild(moodEl);
+  return moodEl;
+}
+
+// The engine already decided WHEN to fade (see content.js's renderMoodBubble())
+// -- this just reacts to the relayed `phase` on each incoming snapshot. Both
+// windows' fades start off the same relayed signal within one frame (~16ms)
+// of each other, so this local CSS transition (rather than any shared clock)
+// is enough to look in sync; no cross-process timestamp comparison needed
+// (each Electron renderer's performance.now() has its own independent epoch).
+function applyMood(mood) {
+  if (!mood) {
+    if (moodEl) moodEl.style.display = "none";
+    return;
+  }
+  const world = window.__VCP1_WORLD__;
+  const originX = world?.origin?.x || 0;
+  const originY = world?.origin?.y || 0;
+  const node = ensureMoodEl();
+  node.style.display = "block";
+  node.style.backgroundImage = `url("${mood.url}")`;
+  node.style.opacity = mood.phase === "fading" ? "0" : "1";
+  const localX = mood.gx - originX;
+  const localY = mood.gy - originY;
+  node.style.transform = `translate(${Math.round(localX)}px, ${Math.round(localY)}px) translate(-50%, -50%)`;
+}
+
 function ensureEl() {
   if (el) return el;
   el = document.createElement("div");
@@ -51,6 +110,8 @@ function applySnapshot(snap) {
     `translate(-50%, -50%) ` +
     `scale(${snap.scale})`;
   node.style.transformOrigin = "center center";
+
+  applyMood(snap.mood);
 }
 
 window.addEventListener("vcp1:snapshot", (e) => applySnapshot(e.detail));

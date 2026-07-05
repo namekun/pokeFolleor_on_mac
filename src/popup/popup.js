@@ -318,6 +318,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const evolveChoiceEl = document.getElementById("evolveChoice");
   const evolveChoiceLabelEl = document.getElementById("evolveChoiceLabel");
   const evolveChoiceButtonsEl = document.getElementById("evolveChoiceButtons");
+  const moodPreviewEl = document.getElementById("moodPreview");
 
   // Defaults align with current content.js constants
   const DEFAULTS = {
@@ -408,6 +409,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Final word on option labels + search meta for the active language
         applyLang(CUR_LANG);
         setPreviewForPack(packEl.value);
+        setMoodPreviewForPack(packEl.value);
         renderGrowthUI();
         renderEvolveChoice();
       })();
@@ -432,6 +434,7 @@ document.addEventListener("DOMContentLoaded", () => {
         packEl.value = nextPack;
         if (packEl.selectedIndex === -1 && packEl.options.length) packEl.selectedIndex = 0;
         setPreviewForPack(packEl.value);
+        setMoodPreviewForPack(packEl.value);
       }
       needsLockRefresh = true; // current-pack-always-unlocked-for-display depends on this
     }
@@ -464,6 +467,7 @@ document.addEventListener("DOMContentLoaded", () => {
   packEl.addEventListener("change", () => {
     save({ vcp1_pack: packEl.value });
     setPreviewForPack(packEl.value);
+    setMoodPreviewForPack(packEl.value);
     renderGrowthUI();
     renderEvolveChoice();
   });
@@ -615,6 +619,33 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     tryNext();
+  }
+
+  // Small "current mood" thumbnail next to the level label (Normal portrait
+  // only -- this is just a static preview, not the animated mood bubble that
+  // content.js shows on the follower itself). Portrait coverage varies per
+  // Pokémon (see assets/portraits/index.json in content.js), so this is
+  // hidden rather than shown broken when the selected pack has none.
+  function setMoodPreviewForPack(pack) {
+    if (!moodPreviewEl) return;
+    const slugFull = (pack || "").split("/").pop() || "";
+    const generation = generationFromPack(pack);
+    if (!generation || !slugFull) {
+      moodPreviewEl.style.display = "none";
+      return;
+    }
+    const url = chrome.runtime.getURL(`assets/portraits/${generation}/${slugFull}/Normal.webp`);
+    const img = new Image();
+    img.onload = () => {
+      moodPreviewEl.src = url;
+      moodPreviewEl.alt = `${slugFromPack(pack)} mood`;
+      moodPreviewEl.style.display = "inline-block";
+    };
+    img.onerror = () => {
+      moodPreviewEl.removeAttribute("src");
+      moodPreviewEl.style.display = "none";
+    };
+    img.src = url;
   }
 
   // --- Pack search helpers (magnifying glass action) ---
