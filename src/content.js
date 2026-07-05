@@ -410,6 +410,11 @@ function levelForXp(xp) {
 const GROWTH = {};
 let growthDirty = false;
 let growthLoaded = false;
+// dex3 keys removed from GROWTH (see evolveTo()) that must also be removed
+// from storage on the next flush -- flushGrowth()'s merge only ever raises
+// an existing key's xp, so without this the old pre-evolution dex would
+// silently resurrect from storage instead of actually moving.
+const growthDeletions = new Set();
 let xpTimeAccMs = 0; // minutes-of-activity accumulator for the time-based XP source
 
 // { [dex3]: { to: [{ dex, level }] } } from evolutions.json (build:evolutions).
@@ -504,6 +509,8 @@ function flushGrowth() {
   if (!growthDirty || !growthLoaded) return;
   growthDirty = false;
   const toWrite = { ...GROWTH };
+  const toDelete = new Set(growthDeletions);
+  growthDeletions.clear();
   try {
     chrome.storage.sync.get(["vcp1_growth"], (res) => {
       const stored = res.vcp1_growth || {};
@@ -512,6 +519,11 @@ function flushGrowth() {
         const storedXp = (stored[dex] && stored[dex].xp) || 0;
         const localXp = toWrite[dex].xp || 0;
         merged[dex] = { xp: Math.max(storedXp, localXp) };
+      }
+      // Only actually remove a deleted dex if nothing re-added it in the same
+      // flush (defensive; in-memory GROWTH never does this today).
+      for (const dex of toDelete) {
+        if (!(dex in toWrite)) delete merged[dex];
       }
       chrome.storage.sync.set({ vcp1_growth: merged });
     });
@@ -569,6 +581,7 @@ function evolveTo(fromDex3, toDex3) {
     // Move the growth record: same creature, new dex, XP carries over as-is.
     const record = GROWTH[fromDex3] || { xp: 0 };
     delete GROWTH[fromDex3];
+    growthDeletions.add(fromDex3);
     GROWTH[toDex3] = record;
     growthDirty = true;
     UNLOCKED.add(toDex3);
