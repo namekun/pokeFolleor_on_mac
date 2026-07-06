@@ -47,7 +47,15 @@ const WANDER = {
 };
 
 // --- behavior thresholds ---
-const SLEEP_TIMEOUT_MS = 30000; // 30s of no movement -> sleep (production value)
+const SLEEP_TIMEOUT_MS = 30000; // 30s of no movement -> sleep (production value, follow mode only -- see sleepTimeoutMs())
+// Wander mode's own idle-sleep timeout, separate from follow's above: a user
+// watching the sprite wander (not actively moving the cursor) would otherwise
+// hit follow's 30s threshold constantly and see it fall asleep mid-roam. Much
+// longer so wander only sleeps once the cursor has genuinely been abandoned,
+// not just because the user is watching rather than steering. Random NAP
+// (NAP_MIN_MS/NAP_MAX_MS/NAP_CHANCE below) and the wake-up trigger are both
+// unrelated to this and unchanged -- see wanderSleepTimeoutMs().
+const WANDER_SLEEP_TIMEOUT_MS = 5 * 60 * 1000; // 5min of no cursor movement -> wander sleeps (tune here)
 const ARRIVE_RADIUS_PX = 6;     // close enough to target to call it "arrived" and settle into idle
 const SLOW_RADIUS_PX   = 60;    // ease walking speed down within this distance for a soft landing
 const VEL_DECAY_DELAY_MS = 80;  // no mousemove for this long -> start decaying velAvg toward zero
@@ -60,8 +68,14 @@ const VEL_DECAY_TAU_MS   = 120; // exponential decay time constant once decaying
 // always the full SLEEP_TIMEOUT_MS.
 let TEST_SLEEP_TIMEOUT_MS = null;
 function sleepTimeoutMs() { return TEST_SLEEP_TIMEOUT_MS ?? SLEEP_TIMEOUT_MS; }
+// Same pattern, for wander's own (much longer) idle-sleep timeout above --
+// lets a CDP harness dial WANDER_SLEEP_TIMEOUT_MS's 5 real minutes down to
+// something it can actually wait out.
+let TEST_WANDER_SLEEP_TIMEOUT_MS = null;
+function wanderSleepTimeoutMs() { return TEST_WANDER_SLEEP_TIMEOUT_MS ?? WANDER_SLEEP_TIMEOUT_MS; }
 window.__VCP1_TEST_HOOKS__ = {
   setSleepTimeoutMs(ms) { TEST_SLEEP_TIMEOUT_MS = (typeof ms === "number" && ms > 0) ? ms : null; },
+  setWanderSleepTimeoutMs(ms) { TEST_WANDER_SLEEP_TIMEOUT_MS = (typeof ms === "number" && ms > 0) ? ms : null; },
   // Test-only entry points for the XP/evolution engine below (see "evolution
   // / growth (XP) engine" section) -- lets an automated harness grant XP
   // directly instead of waiting real-time for activity/distance to accrue it.
@@ -248,13 +262,16 @@ function pickRowForState(stateName, dx, dy) {
   // what's visibly happening on screen (cursor velocity can go stale the
   // moment the cursor stops, while the follower is still catching up).
   // At rest (idle/sleep) there's no travel direction, so always show front.
-  // "attack" (wander mode only) and "eat" (feeding, either mode) both play in
-  // place — target is pinned to pos, so dx/dy read ~0 — so face whichever
-  // direction it was last moving instead (WANDER.lastDir is updated by any
-  // actual movement toward a target, not just in wander mode -- see tick()).
+  // "attack"/"hop"/"rotate" (hover reactions, plus attack's own wander-mode
+  // spontaneous roll) and "eat" (feeding, either mode) all play in place —
+  // target is pinned to pos, so dx/dy read ~0 — so face whichever direction
+  // it was last moving instead (WANDER.lastDir is updated by any actual
+  // movement toward a target, not just in wander mode -- see tick()).
   let dir8;
   if (stateName === "walk") dir8 = pickDir8FromVector(dx, dy);
-  else if (stateName === "attack" || stateName === "eat") dir8 = pickDir8FromVector(WANDER.lastDir.x, WANDER.lastDir.y);
+  else if (stateName === "attack" || stateName === "eat" || stateName === "hop" || stateName === "rotate") {
+    dir8 = pickDir8FromVector(WANDER.lastDir.x, WANDER.lastDir.y);
+  }
   else dir8 = "front";
   if (dir8 in rows) return rows[dir8];
 
@@ -405,6 +422,7 @@ function resetAnimationForNewPack() {
   // Same reasoning for hover-to-attack: drop any in-progress attack/cooldown
   // bookkeeping tied to the old pack's sheet.
   HOVER.active = false;
+  HOVER.reaction = null;
   HOVER.inside = false;
   HOVER.exitedSinceLastAttack = true;
   HOVER.cooldownUntil = 0;
@@ -961,14 +979,16 @@ function enterIdleSleep(now) {
 // sprite-sheet loops, not wall-clock time).
 function tickWander(now) {
   // Idle-triggered sleep: falls asleep from wherever it currently is once the
-  // cursor has been stationary for sleepTimeoutMs() — same trigger/threshold
-  // as follow mode's pickStateBySpeed(), reused here. This is independent of
+  // cursor has been stationary for wanderSleepTimeoutMs() — its own, much
+  // longer threshold than follow mode's pickStateBySpeed() (see
+  // WANDER_SLEEP_TIMEOUT_MS above for why: a user just watching it wander
+  // shouldn't trip the short follow-mode timeout). This is independent of
   // the random NAP roll in choosePostPause(): NAP always wakes on its own
   // timer regardless of cursor activity, while this sleeps for as long as the
   // cursor stays put and wakes the instant it moves again. Never interrupts
   // an in-progress attack.
   if (hasState("sleep") && WANDER.state !== "sleep" && WANDER.state !== "attack" &&
-      (now - RUNTIME.lastMoveTs) > sleepTimeoutMs()) {
+      (now - RUNTIME.lastMoveTs) > wanderSleepTimeoutMs()) {
     enterIdleSleep(now);
     return;
   }
@@ -1049,14 +1069,44 @@ const HOVER = {
   inside: false,                // cursor is within the current frame's rendered box
   exitedSinceLastAttack: true,  // must go true (cursor left the box) before retriggering
   cooldownUntil: 0,             // performance.now() floor before a new attack can start
-  active: false,                // an attack cycle triggered by hover is currently playing
+  active: false,                // a reaction cycle triggered by hover is currently playing
+  reaction: null,               // which state is playing this time -- "hop" | "rotate" | "attack" (see pickHoverReaction())
   cyclesLeft: 0,
   until: 0                      // wall-clock backstop, mirrors enterAttack()'s pattern
 };
 
+// Reaction variety: instead of always "attack", each hover trigger rolls a
+// weighted pick among whichever of these states the current pack actually
+// has (see pickHoverReaction()) -- hop/rotate favored per the feature request
+// (the sprite was always attacking, so weight it toward the new playful
+// reactions rather than a flat 1/3 split). Wander mode's own spontaneous 15%
+// attack roll (ATTACK_CHANCE/enterAttack() above) is separate and unaffected
+// -- it always plays "attack", never rolls this pool.
+const HOVER_REACTION_WEIGHTS = { hop: 2, rotate: 2, attack: 1 };
+
+function hasHoverReactionAvailable() {
+  return Object.keys(HOVER_REACTION_WEIGHTS).some(hasState);
+}
+
+// Weighted random pick among only the reaction states this pack's loaded
+// meta actually has. updateHover() already gates on hasHoverReactionAvailable()
+// before ever calling this, so the pool is never empty in practice; the
+// "attack" fallback below is defensive only.
+function pickHoverReaction() {
+  const pool = Object.keys(HOVER_REACTION_WEIGHTS).filter(hasState);
+  if (!pool.length) return "attack";
+  const total = pool.reduce((sum, name) => sum + HOVER_REACTION_WEIGHTS[name], 0);
+  let roll = Math.random() * total;
+  for (const name of pool) {
+    roll -= HOVER_REACTION_WEIGHTS[name];
+    if (roll <= 0) return name;
+  }
+  return pool[pool.length - 1];
+}
+
 function updateHover(now) {
   if (FEEDING.active) { HOVER.inside = false; return; } // never layer hover-attack on top of an in-progress feed
-  if (!hasState("attack")) { HOVER.inside = false; return; } // no attack sheet -> ignore hover entirely
+  if (!hasHoverReactionAvailable()) { HOVER.inside = false; return; } // no hop/rotate/attack sheet -> ignore hover entirely
   const st = RUNTIME.meta.states[RUNTIME.anim.name] || RUNTIME.meta.states.idle;
   const halfW = (st.frame.w * CONFIG.scale) / 2;
   const halfH = (st.frame.h * CONFIG.scale) / 2;
@@ -1082,12 +1132,13 @@ function updateHover(now) {
 
 function triggerHoverAttack(now) {
   HOVER.active = true;
+  HOVER.reaction = pickHoverReaction();
   HOVER.exitedSinceLastAttack = false;
   HOVER.cyclesLeft = 1;
-  const st = RUNTIME.meta.states.attack;
+  const st = RUNTIME.meta.states[HOVER.reaction];
   const cycleMs = (st && st.fps) ? (st.frames / st.fps) * 1000 : 1000;
   HOVER.until = now + cycleMs + 1000;
-  // Interaction bonus: a deliberate user-triggered hover attack, not the
+  // Interaction bonus: a deliberate user-triggered hover reaction, not the
   // wander FSM's own random attack roll (enterAttack()) -- that one isn't
   // user interaction, so it earns no XP.
   awardXP(XP_PER_HOVER_ATTACK);
@@ -1096,6 +1147,7 @@ function triggerHoverAttack(now) {
 
 function endHoverAttack(now) {
   HOVER.active = false;
+  HOVER.reaction = null;
   HOVER.cooldownUntil = now + HOVER_COOLDOWN_MS;
   // A hover mid-nap should wake the wander FSM, not let it resume napping the
   // instant the attack ends — idle-triggered "sleep" already wakes on its own
@@ -1579,7 +1631,7 @@ function tick(dtMs) {
   const dist = Math.hypot(dx, dy);
 
   let desired = STATE.mode === "wander" ? wanderDesiredState() : pickStateBySpeed();
-  if (HOVER.active) desired = "attack";
+  if (HOVER.active) desired = HOVER.reaction || "attack";
   if (FEEDING.active) {
     if (FEEDING.phase === "walk") desired = "walk";
     else if (FEEDING.phase === "eat") desired = "eat";
@@ -1600,13 +1652,13 @@ function tick(dtMs) {
     const atCycleEnd = RUNTIME.anim.frame >= st.frames - 1;
     const timedOut = (performance.now() - RUNTIME.pendingState.queuedAt) > 300;
     if (atCycleEnd || timedOut) {
-      const enteringAttack = RUNTIME.pendingState.name === "attack";
-      const enteringEat = RUNTIME.pendingState.name === "eat";
+      // "attack"/"hop"/"rotate" (hover reactions + attack's own wander-mode
+      // roll) and "eat" (feeding) are all cycle-counted below via frame
+      // wraparound, so each needs a clean start from frame 0.
+      const enteringCycleCountedState = ["attack", "eat", "hop", "rotate"].includes(RUNTIME.pendingState.name);
       RUNTIME.anim.name = RUNTIME.pendingState.name;
       RUNTIME.anim.row  = pickRowForState(RUNTIME.anim.name, dx, dy);
-      // Start attack/eat cleanly from their first frame so cycle-counting
-      // below (which needs a real wraparound to detect "one full cycle") is exact.
-      if (enteringAttack || enteringEat) { RUNTIME.anim.frame = 0; RUNTIME.anim.accMs = 0; }
+      if (enteringCycleCountedState) { RUNTIME.anim.frame = 0; RUNTIME.anim.accMs = 0; }
       RUNTIME.pendingState = null;
     }
   } else {
@@ -1646,7 +1698,9 @@ function tick(dtMs) {
       WANDER.attackCyclesLeft -= 1;
       if (WANDER.attackCyclesLeft <= 0) enterPause();
     }
-    if (HOVER.active && RUNTIME.anim.name === "attack" && RUNTIME.anim.frame < prevFrame) {
+    // Same wraparound counting, generalized to whichever reaction this hover
+    // trigger rolled (see pickHoverReaction()) -- not always "attack" anymore.
+    if (HOVER.active && RUNTIME.anim.name === HOVER.reaction && RUNTIME.anim.frame < prevFrame) {
       HOVER.cyclesLeft -= 1;
       if (HOVER.cyclesLeft <= 0) endHoverAttack(now);
     }

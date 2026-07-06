@@ -23,19 +23,23 @@ whole desktop — over every app, not just the browser.
   cursor. It walks to a random point, then rests for 2–8 seconds; during that
   rest it has a 10% chance to nap (packs with a sleep state only) and a 15%
   chance to play an attack motion in place (packs with an attack state only).
-  Just like Follow mode, if the cursor sits still for 30 seconds it falls
-  asleep right where it's standing (again, packs with a sleep animation
-  only), and wakes the instant the cursor moves again.
-- **Hover attack** — hold the cursor still over the sprite and it plays an
-  attack animation (packs with an attack animation only). Passing over it
-  quickly is deliberately ignored, so a stray brush of the cursor never sets
-  off an attack by accident. After an attack there's about a 2-second
-  cooldown, and the cursor has to leave the sprite and come back before it
-  can trigger again. Hovering over it while it's asleep wakes it up and it
-  attacks right back.
+  Follow mode falls asleep after just 30 seconds of no cursor movement, but
+  Wander mode uses a much longer idle timeout (5 minutes by default) so it
+  doesn't keep nodding off while you're simply watching it roam rather than
+  moving the cursor — it falls asleep right where it's standing once that
+  timeout passes (again, packs with a sleep animation only), and wakes the
+  instant the cursor moves again.
+- **Hover reactions** — hold the cursor still over the sprite and it plays one
+  of a few reactions at random: a little hop, an in-place spin, or an attack
+  motion (whichever of those the pack actually has — hop and spin come up a
+  bit more often than attack). Passing over it quickly is deliberately
+  ignored, so a stray brush of the cursor never sets one off by accident.
+  After a reaction there's about a 2-second cooldown, and the cursor has to
+  leave the sprite and come back before it can trigger again. Hovering over
+  it while it's asleep wakes it up and it reacts right back.
 - **Growth & evolution** — every Pokémon grows by earning its own XP.
   - Time spent together, actual distance travelled, and interactions like
-    hover attacks all contribute XP, tracked separately per Pokémon.
+    hover reactions all contribute XP, tracked separately per Pokémon.
   - Evolution levels match the games (e.g. Bulbasaur evolves into Ivysaur at
     Lv.16). Pokémon that evolve by stone, trade, or friendship in the games
     get an equivalent level threshold in this system instead.
@@ -50,7 +54,7 @@ whole desktop — over every app, not just the browser.
     they only ever show up through breeding.
 - **Mood bubble** — a small portrait bubble pops up above the sprite's head
   to show its current mood. It's happy right after evolving, delighted when
-  you play with it via hover attack, calm right after waking up, and
+  you play with it via a hover reaction, calm right after waking up, and
   startled when the cursor whips past it quickly (cooldown-gated so it
   doesn't show up too often). Leave the cursor completely still for over an
   hour and it can look bored, too. Portraits come from the same PMD
