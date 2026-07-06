@@ -218,8 +218,19 @@
     /* Growth: level + XP progress toward next evolution */
     .growth { margin: 6px auto 0; width: 240px; }
     .growthRow {
-      display: flex; justify-content: space-between; align-items: baseline;
+      display: flex; justify-content: space-between; align-items: center;
       font-weight: 800; font-size: 12px; margin-bottom: 4px;
+    }
+    .growthLeft { display: inline-flex; align-items: center; gap: 6px; }
+    /* Small "current mood" portrait -- shown only if the selected Pokémon has
+       a Normal portrait downloaded (see assets/portraits/); hidden otherwise. */
+    #moodPreview {
+      display: none;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      border: 1.5px solid #000;
+      object-fit: cover;
+      image-rendering: pixelated;
     }
     #evolveHint { font-weight: 700; font-size: 11px; opacity: 0.75; }
     .xpBarTrack {
@@ -351,7 +362,10 @@
     <!-- Growth: level + XP progress toward next evolution -->
     <div class="growth">
       <div class="growthRow">
-        <span id="levelLabel">Lv. 1</span>
+        <span class="growthLeft">
+          <img id="moodPreview" alt="" />
+          <span id="levelLabel">Lv. 1</span>
+        </span>
         <span id="evolveHint"></span>
       </div>
       <div class="xpBarTrack"><div class="xpBarFill" id="xpBarFill"></div></div>

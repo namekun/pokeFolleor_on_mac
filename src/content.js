@@ -79,7 +79,14 @@ window.__VCP1_TEST_HOOKS__ = {
       evolveFlashActive: EVOLVE.active
     };
   },
-  flushGrowthNow() { growthDirty = true; flushGrowth(); }
+  flushGrowthNow() { growthDirty = true; flushGrowth(); },
+  // Test-only entry point for the mood-bubble system (see "mood bubble"
+  // section below) -- lets an automated harness force a bubble on demand
+  // instead of waiting for a real evolution/hover-attack/sleep/idle event.
+  forceMood(emotion) { triggerMood(String(emotion || "Normal")); },
+  getMoodSnapshot() {
+    return { active: MOOD.active, url: MOOD.url, startedAt: MOOD.startedAt };
+  }
 };
 
 function hasState(name) {
@@ -380,6 +387,10 @@ function resetAnimationForNewPack() {
   // A pack switch (manual, while an evolution flash happened to be mid-way)
   // should not leave the flash filter stuck applied to the new sprite.
   EVOLVE.active = false;
+  // A mood bubble mid-display would otherwise keep showing the OLD pack's
+  // portrait after switching -- the next renderMoodBubble() call (within one
+  // frame) hides the DOM element once it sees this flag cleared.
+  MOOD.active = false;
 }
 
 // --- evolution / growth (XP) engine ---
@@ -430,6 +441,12 @@ let EVOLUTIONS = {};
 // dex number into a loadable pack path (evolutions.json only carries dex+level).
 let PACK_INDEX_BY_DEX = {};
 
+// { [rawPath]: string[] } from assets/portraits/index.json -- which emotion
+// portraits actually exist for a given pack (see the "mood bubble" section
+// below). Coverage varies per-Pokémon since it was downloaded from PMD
+// SpriteCollab, which doesn't have every emotion drawn for every species.
+let PORTRAIT_COVERAGE = {};
+
 let UNLOCKED = new Set(); // dex3 strings the user has unlocked (evolved into, or grandfathered in)
 // { dex, choices: [{dex, level}] } | null -- a branch evolution (e.g. Eevee)
 // awaiting a user choice in Settings. Persisted so it survives a restart.
@@ -469,6 +486,14 @@ async function loadEvolutionData() {
     if (Number.isFinite(dex)) byDex[String(dex).padStart(3, "0")] = entry.id;
   }
   PACK_INDEX_BY_DEX = byDex;
+}
+
+// Best-effort fetch of the portrait coverage map; silent empty-map fallback
+// on failure -- same pattern as loadEvolutionData() above. An empty/missing
+// map just means portraitUrlForEmotion() always returns null, so the mood
+// bubble quietly never appears rather than blocking pack loading.
+async function loadPortraitCoverage() {
+  PORTRAIT_COVERAGE = await fetchJsonAsset("assets/portraits/index.json", {});
 }
 
 // A dex is locked iff *some non-baby* source evolves into it -- a baby's own
@@ -630,6 +655,7 @@ function evolveTo(fromDex3, toDex3) {
     try {
       await loadPack(targetId);
       chrome.storage.sync.set({ vcp1_pack: targetId });
+      triggerMood("Joyous"); // evolution complete -- portrait is for the newly-evolved pack, loadPack() already switched
       // A single big XP grant can cross more than one threshold at once
       // (e.g. 001->002->003) -- re-check from the new dex so growth chains
       // through every step it has already earned, one flash at a time.
@@ -691,6 +717,10 @@ function applyFrame() {
     : "";
   followerEl.style.filter = evolveFilter;
 
+  // Mood bubble: positions/fades this window's own bubble element (if a mood
+  // is active) and hands back the payload to relay to mirrors below.
+  const moodPayload = renderMoodBubble();
+
   // Desktop app only: hand a snapshot of what was just painted to any mirror
   // windows on other displays, so they can render the same sprite without
   // running this engine themselves. Undefined (and this whole block skipped)
@@ -700,7 +730,8 @@ function applyFrame() {
       x: RUNTIME.pos.x, y: RUNTIME.pos.y,
       w, h, bgImage: sheetUrl, bpx, bpy,
       bgSizeW: img?.naturalWidth || 0, bgSizeH: img?.naturalHeight || 0,
-      scale: SCALE_VAL, filter: evolveFilter
+      scale: SCALE_VAL, filter: evolveFilter,
+      mood: moodPayload
     });
   }
 }
@@ -968,6 +999,7 @@ function triggerHoverAttack(now) {
   // wander FSM's own random attack roll (enterAttack()) -- that one isn't
   // user interaction, so it earns no XP.
   awardXP(XP_PER_HOVER_ATTACK);
+  triggerMood("Happy"); // being played with -- same "deliberate user interaction" distinction as the XP bonus above
 }
 
 function endHoverAttack(now) {
@@ -977,6 +1009,179 @@ function endHoverAttack(now) {
   // instant the attack ends — idle-triggered "sleep" already wakes on its own
   // (see tickWander) since the hover's mousemove just refreshed lastMoveTs.
   if (STATE.mode === "wander" && WANDER.state === "nap") enterRoam();
+}
+
+// --- mood bubble: a small floating portrait that pops up above the sprite's
+// head for a few seconds after a notable event (evolving, being played with
+// via hover-attack, waking up, or being left idle too long). Portraits come
+// from the same PMD SpriteCollab source as the sprite sheets (see
+// assets/portraits/, populated by a one-off download script -- not every
+// Pokémon has every emotion drawn, so coverage is looked up from a generated
+// index.json rather than probed live: a live fetch() 404 wouldn't itself log
+// to the console, but assigning an unverified 404 URL straight to
+// backgroundImage/img.src would (the browser's resource loader logs failed
+// image loads regardless of how the URL was obtained) -- the index avoids
+// that entirely.
+const MOOD_DISPLAY_MS = 2500; // fully-opaque hold time before the fade begins
+const MOOD_FADE_MS = 400;     // opacity transition duration, in and out
+const MOOD_BUBBLE_PX = 44;    // outer white circle -- fixed size, independent of CONFIG.scale
+const MOOD_PORTRAIT_PX = 30;  // inner portrait image size, centered in the bubble
+const MOOD_GAP_PX = 6;        // px gap between the sprite's top edge and the bubble's bottom edge
+
+// "Sad" (bored) trigger: no cursor movement at all for this long, at most
+// once per cooldown window -- reuses RUNTIME.lastMoveTs, the same idle
+// signal pickStateBySpeed()/tickWander() already use for the (much shorter)
+// sleep timeout, since "no cursor movement" is the closest available proxy
+// for "the user isn't interacting with the page" in both follow and wander
+// modes.
+const SAD_IDLE_MS = 60 * 60 * 1000;
+const SAD_COOLDOWN_MS = 60 * 60 * 1000;
+
+// "Surprised" trigger: a fast cursor passing very close to (or through) the
+// sprite -- deliberately the mirror image of the hover-attack gate above
+// (HOVER_MAX_SPEED_PXPS requires *slow*, this requires *fast*), so the two
+// can never both fire off the same cursor motion. A long cooldown keeps it
+// rare, per the "don't overuse it" design note.
+const SURPRISE_MARGIN_PX = 60; // extra box margin beyond the sprite itself -- a "near miss" zone, not containment
+const SURPRISE_MIN_SPEED_PXPS = 900;
+const SURPRISE_COOLDOWN_MS = 15000;
+
+let lastSadShownAt = 0;
+let lastSurprisedAt = 0;
+
+const MOOD = { active: false, url: null, startedAt: 0 };
+let moodBubbleEl = null;
+
+// Resolve which portrait file (if any) to show for `emotion` under the
+// currently-loaded pack, falling back to "Normal" and finally to nothing --
+// per spec, a pack with zero portrait coverage must silently skip the
+// bubble rather than show a wrong/missing image.
+function portraitUrlForEmotion(emotion) {
+  const rawPath = typeof RUNTIME.meta?.rawPath === "string" ? RUNTIME.meta.rawPath.trim() : "";
+  if (!rawPath) return null;
+  const available = PORTRAIT_COVERAGE[rawPath];
+  if (!available || !available.length) return null;
+  const pick = available.includes(emotion) ? emotion : (available.includes("Normal") ? "Normal" : null);
+  if (!pick) return null;
+  return extUrl(`assets/portraits/${rawPath}/${pick}.webp`);
+}
+
+function ensureMoodBubble() {
+  if (moodBubbleEl) return moodBubbleEl;
+  moodBubbleEl = document.createElement("div");
+  moodBubbleEl.id = "__vcp1_mood_bubble";
+  Object.assign(moodBubbleEl.style, {
+    position: "fixed",
+    left: "0px",
+    top: "0px",
+    width: `${MOOD_BUBBLE_PX}px`,
+    height: `${MOOD_BUBBLE_PX}px`,
+    borderRadius: "50%",
+    background: "#fff",
+    border: "2px solid rgba(0,0,0,0.15)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
+    backgroundRepeat: "no-repeat",
+    backgroundPosition: "center",
+    backgroundSize: `${MOOD_PORTRAIT_PX}px ${MOOD_PORTRAIT_PX}px`,
+    imageRendering: "pixelated",
+    pointerEvents: "none",
+    zIndex: "2147483647",
+    display: "none",
+    opacity: "0",
+    transition: `opacity ${MOOD_FADE_MS}ms ease-out`
+  });
+  document.documentElement.appendChild(moodBubbleEl);
+  return moodBubbleEl;
+}
+
+function removeMoodBubble() {
+  if (moodBubbleEl?.parentNode) moodBubbleEl.parentNode.removeChild(moodBubbleEl);
+  moodBubbleEl = null;
+}
+
+// Called from any trigger site (evolution, hover-attack, wake-up, idle-sad,
+// surprised) below and from the CDP test hook. Re-triggering while a bubble
+// is already fading resets the clock and reverses the transition cleanly --
+// no special-case needed, since setting opacity back to "1" mid-transition
+// just animates from wherever it currently is.
+function triggerMood(emotion) {
+  const url = portraitUrlForEmotion(emotion);
+  if (!url) return;
+  MOOD.active = true;
+  MOOD.url = url;
+  MOOD.startedAt = performance.now();
+}
+
+// Keeps this window's own bubble element positioned/faded, and returns the
+// payload to relay to mirror windows (or null once hidden/never shown) --
+// called once per applyFrame(). Mirrors receive only the already-computed
+// `phase` + global center point, never a timestamp: each Electron renderer's
+// performance.now() has its own independent epoch, so a mirror comparing its
+// own clock against a timestamp computed in the engine window's clock would
+// be comparing unrelated numbers. Instead the mirror just flips its own
+// local CSS transition off the same phase signal (see mirror-render.js) --
+// visually equivalent since both fades start within one relayed frame
+// (~16ms) of each other.
+function renderMoodBubble() {
+  if (!MOOD.active) {
+    if (moodBubbleEl) moodBubbleEl.style.display = "none";
+    return null;
+  }
+  const elapsed = performance.now() - MOOD.startedAt;
+  if (elapsed >= MOOD_DISPLAY_MS + MOOD_FADE_MS) {
+    MOOD.active = false;
+    if (moodBubbleEl) moodBubbleEl.style.display = "none";
+    return null;
+  }
+  const phase = elapsed >= MOOD_DISPLAY_MS ? "fading" : "visible";
+  const el = ensureMoodBubble();
+  el.style.display = "block";
+  el.style.backgroundImage = `url("${MOOD.url}")`;
+  el.style.opacity = phase === "fading" ? "0" : "1";
+
+  // Position centered above the sprite's current top edge, in the same
+  // global-to-local space applyFrame() itself uses for the follower.
+  const st = RUNTIME.meta?.states?.[RUNTIME.anim.name];
+  const halfH = st?.frame?.h ? (st.frame.h * CONFIG.scale) / 2 : 20;
+  const gx = RUNTIME.pos.x;
+  const gy = RUNTIME.pos.y - halfH - MOOD_GAP_PX - MOOD_BUBBLE_PX / 2;
+  const world = getWorldInfo();
+  const originX = world ? world.origin.x : 0;
+  const originY = world ? world.origin.y : 0;
+  el.style.transform =
+    `translate(${Math.round(gx - originX)}px, ${Math.round(gy - originY)}px) translate(-50%, -50%)`;
+
+  return { url: MOOD.url, phase, gx, gy };
+}
+
+// "Surprised": a fast cursor passing through a near-miss zone around the
+// sprite (see SURPRISE_* constants above for why this can never collide
+// with the hover-attack trigger).
+//
+// Code review fix: RUNTIME.lastMoveInstantSpeed is a per-mousemove-event
+// value that never decays on its own (unlike RUNTIME.speedAvg, which tick()
+// exponentially decays toward zero once movement stops -- see the
+// VEL_DECAY_* logic above). Without a recency check, a fast cursor that
+// stops while still parked inside the near-miss zone leaves
+// lastMoveInstantSpeed stuck at its last (high) value forever, so this
+// would re-fire Surprised every SURPRISE_COOLDOWN_MS indefinitely even
+// though the cursor is no longer moving. Gated the same way updateHover()
+// already gates its own speed check, with the same HOVER_RECENCY_MS window:
+// a cursor that's genuinely passing through right now is by definition
+// recent, so legitimate Surprised triggers are unaffected.
+function updateSurprise(now) {
+  if (!RUNTIME.meta?.states || HOVER.active) return; // don't layer Surprised on top of an in-progress attack
+  if (now - lastSurprisedAt < SURPRISE_COOLDOWN_MS) return;
+  if (now - RUNTIME.lastMoveTs >= HOVER_RECENCY_MS) return; // stale instant-speed reading -- cursor isn't actually moving right now
+  const st = RUNTIME.meta.states[RUNTIME.anim.name] || RUNTIME.meta.states.idle;
+  const halfW = (st.frame.w * CONFIG.scale) / 2 + SURPRISE_MARGIN_PX;
+  const halfH = (st.frame.h * CONFIG.scale) / 2 + SURPRISE_MARGIN_PX;
+  const inside = Math.abs(RUNTIME.lastMouse.x - RUNTIME.pos.x) <= halfW &&
+                 Math.abs(RUNTIME.lastMouse.y - RUNTIME.pos.y) <= halfH;
+  if (inside && RUNTIME.lastMoveInstantSpeed > SURPRISE_MIN_SPEED_PXPS) {
+    lastSurprisedAt = now;
+    triggerMood("Surprised");
+  }
 }
 
 function tick(dtMs) {
@@ -991,6 +1196,14 @@ function tick(dtMs) {
   }
 
   updateHover(now);
+  updateSurprise(now);
+
+  // "Sad" (bored): the cursor hasn't moved at all in a long while -- rate
+  // limited so it can only nag once per cooldown window, not every tick.
+  if (now - RUNTIME.lastMoveTs > SAD_IDLE_MS && now - lastSadShownAt > SAD_COOLDOWN_MS) {
+    lastSadShownAt = now;
+    triggerMood("Sad");
+  }
 
   if (STATE.mode === "wander") {
     tickWander(now);
@@ -1027,6 +1240,12 @@ function tick(dtMs) {
 
   let desired = STATE.mode === "wander" ? wanderDesiredState() : pickStateBySpeed();
   if (HOVER.active) desired = "attack";
+  // Captured before the switch below can change RUNTIME.anim.name -- used
+  // after the switch to detect the "sleep" -> anything-else edge (waking
+  // up), for the "Normal" mood trigger. Covers both follow-mode's idle sleep
+  // and wander-mode's "nap"/idle-sleep, since both play the "sleep"
+  // animation state -- there's no need to distinguish them here.
+  const wasSleeping = RUNTIME.anim.name === "sleep";
   if (desired !== RUNTIME.anim.name) {
     // Queue the switch; wait for current cycle to finish before committing
     if (!RUNTIME.pendingState || RUNTIME.pendingState.name !== desired) {
@@ -1047,6 +1266,7 @@ function tick(dtMs) {
   } else {
     RUNTIME.pendingState = null;
   }
+  if (wasSleeping && RUNTIME.anim.name !== "sleep") triggerMood("Normal");
 
   if (dist > ARRIVE_RADIUS_PX) {
     const walkSpeed = walkSpeedFromConfig(); // px/s
@@ -1102,6 +1322,7 @@ function teardownInvalidatedContext() {
   window.removeEventListener("vcp1:world-updated", onViewportResize);
   stopLocalPoll();
   removeFollower();
+  removeMoodBubble();
   running = false;
 }
 
@@ -1177,6 +1398,7 @@ function stop() {
   running = false;
   window.removeEventListener("mousemove", onMouseMove);
   removeFollower();
+  removeMoodBubble();
 }
 
 async function loadPack(packKey) {
@@ -1229,7 +1451,7 @@ chrome.storage.sync.get(
     STATE.pack    = res.vcp1_pack || DEFAULT_PACK;
     STATE.mode    = res.vcp1_mode === "wander" ? "wander" : "follow";
     applyConfigPatch(res);
-    await loadEvolutionData();
+    await Promise.all([loadEvolutionData(), loadPortraitCoverage()]);
     hydrateGrowthState(res);
     try {
       await loadPack(STATE.pack);

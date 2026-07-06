@@ -1,0 +1,3595 @@
+{
+  "gen-1/002-ivysaur": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/006-charizard": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/005-charmeleon": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/004-charmander": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/003-venusaur": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/001-bulbasaur": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/007-squirtle": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/008-wartortle": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/009-blastoise": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/014-kakuna": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/013-weedle": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/010-caterpie": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/011-metapod": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/012-butterfree": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/016-pidgey": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/015-beedrill": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/017-pidgeotto": [
+    "Normal"
+  ],
+  "gen-1/020-raticate": [
+    "Normal",
+    "Happy",
+    "Pain"
+  ],
+  "gen-1/018-pidgeot": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/019-rattata": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/022-fearow": [
+    "Normal",
+    "Joyous",
+    "Surprised"
+  ],
+  "gen-1/021-spearow": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/023-ekans": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/024-arbok": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/025-pikachu": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/026-raichu": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/029-nidoran-f": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/027-sandshrew": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/028-sandslash": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/030-nidorina": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/031-nidoqueen": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/032-nidoran-m": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/033-nidorino": [
+    "Normal",
+    "Happy",
+    "Pain"
+  ],
+  "gen-1/036-clefable": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/034-nidoking": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/037-vulpix": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/038-ninetales": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/035-clefairy": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/039-jigglypuff": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/040-wigglytuff": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/041-zubat": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/045-vileplume": [
+    "Normal"
+  ],
+  "gen-1/042-golbat": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/044-gloom": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/043-oddish": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/046-paras": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/047-parasect": [
+    "Normal"
+  ],
+  "gen-1/048-venonat": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/049-venomoth": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/050-diglett": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/051-dugtrio": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/054-psyduck": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/053-persian": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/052-meowth": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/055-golduck": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/057-primeape": [
+    "Normal"
+  ],
+  "gen-1/056-mankey": [
+    "Normal",
+    "Happy"
+  ],
+  "gen-1/058-growlithe": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/059-arcanine": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/060-poliwag": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/061-poliwhirl": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/062-poliwrath": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/063-abra": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/065-alakazam": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/064-kadabra": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/068-machamp": [
+    "Normal"
+  ],
+  "gen-1/066-machop": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/067-machoke": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/070-weepinbell": [
+    "Normal",
+    "Pain"
+  ],
+  "gen-1/069-bellsprout": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/071-victreebel": [
+    "Normal"
+  ],
+  "gen-1/073-tentacruel": [
+    "Normal"
+  ],
+  "gen-1/072-tentacool": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/074-geodude": [
+    "Normal",
+    "Happy",
+    "Pain"
+  ],
+  "gen-1/076-golem": [
+    "Normal",
+    "Surprised"
+  ],
+  "gen-1/075-graveler": [
+    "Normal",
+    "Joyous",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/078-rapidash": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/080-slowbro": [
+    "Normal",
+    "Happy",
+    "Sad"
+  ],
+  "gen-1/079-slowpoke": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/081-magnemite": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/082-magneton": [
+    "Normal",
+    "Happy",
+    "Sad",
+    "Pain"
+  ],
+  "gen-1/083-farfetchd": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/084-doduo": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/085-dodrio": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/086-seel": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/087-dewgong": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/077-ponyta": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/088-grimer": [
+    "Normal",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/089-muk": [
+    "Normal"
+  ],
+  "gen-1/090-shellder": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/091-cloyster": [
+    "Normal"
+  ],
+  "gen-1/092-gastly": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/094-gengar": [
+    "Normal",
+    "Happy",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/093-haunter": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/095-onix": [
+    "Normal",
+    "Surprised"
+  ],
+  "gen-1/096-drowzee": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/097-hypno": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/098-krabby": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/099-kingler": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/100-voltorb": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/102-exeggcute": [
+    "Normal"
+  ],
+  "gen-1/101-electrode": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/103-exeggutor": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/104-cubone": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/105-marowak": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/107-hitmonchan": [
+    "Normal"
+  ],
+  "gen-1/106-hitmonlee": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/108-lickitung": [
+    "Normal"
+  ],
+  "gen-1/110-weezing": [
+    "Normal"
+  ],
+  "gen-1/109-koffing": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/111-rhyhorn": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/112-rhydon": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/113-chansey": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/114-tangela": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/115-kangaskhan": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/116-horsea": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/117-seadra": [
+    "Normal"
+  ],
+  "gen-1/119-seaking": [
+    "Normal"
+  ],
+  "gen-1/118-goldeen": [
+    "Normal",
+    "Happy",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/120-staryu": [
+    "Normal",
+    "Happy",
+    "Pain"
+  ],
+  "gen-1/121-starmie": [
+    "Normal"
+  ],
+  "gen-1/122-mr-mime": [
+    "Normal"
+  ],
+  "gen-1/123-scyther": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/124-jynx": [
+    "Normal"
+  ],
+  "gen-1/125-electabuzz": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/127-pinsir": [
+    "Normal"
+  ],
+  "gen-1/126-magmar": [
+    "Normal"
+  ],
+  "gen-1/128-tauros": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/129-magikarp": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/130-gyarados": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/131-lapras": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/132-ditto": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/133-eevee": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/134-vaporeon": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/135-jolteon": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/136-flareon": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/137-porygon": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/138-omanyte": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/139-omastar": [
+    "Normal"
+  ],
+  "gen-1/140-kabuto": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/142-aerodactyl": [
+    "Normal"
+  ],
+  "gen-1/141-kabutops": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/143-snorlax": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/144-articuno": [
+    "Normal"
+  ],
+  "gen-1/145-zapdos": [
+    "Normal"
+  ],
+  "gen-1/146-moltres": [
+    "Normal"
+  ],
+  "gen-1/147-dratini": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/148-dragonair": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/149-dragonite": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/150-mewtwo": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-1/151-mew": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/152-chikorita": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/153-bayleef": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/154-meganium": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/155-cyndaquil": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/156-quilava": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/158-totodile": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/157-typhlosion": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/159-croconaw": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/160-feraligatr": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/161-sentret": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/162-furret": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/163-hoothoot": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/164-noctowl": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/165-ledyba": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/166-ledian": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/167-spinarak": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/168-ariados": [
+    "Normal"
+  ],
+  "gen-2/169-crobat": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/170-chinchou": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/172-pichu": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/171-lanturn": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/173-cleffa": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/175-togepi": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/174-igglybuff": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/176-togetic": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/177-natu": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/178-xatu": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/180-flaaffy": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/179-mareep": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/181-ampharos": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/182-bellossom": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/183-marill": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/184-azumarill": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/186-politoed": [
+    "Normal",
+    "Surprised"
+  ],
+  "gen-2/185-sudowoodo": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/188-skiploom": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/187-hoppip": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/189-jumpluff": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/190-aipom": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/191-sunkern": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/192-sunflora": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/193-yanma": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/194-wooper": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/195-quagsire": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/196-espeon": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/197-umbreon": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/198-murkrow": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/199-slowking": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/200-misdreavus": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/201-unown": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/202-wobbuffet": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/203-girafarig": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/204-pineco": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/205-forretress": [
+    "Normal"
+  ],
+  "gen-2/206-dunsparce": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/207-gligar": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/208-steelix": [
+    "Normal"
+  ],
+  "gen-2/210-granbull": [
+    "Normal"
+  ],
+  "gen-2/209-snubbull": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/211-qwilfish": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/212-scizor": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/213-shuckle": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/214-heracross": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/215-sneasel": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/216-teddiursa": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/217-ursaring": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/218-slugma": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/219-magcargo": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/220-swinub": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/221-piloswine": [
+    "Normal",
+    "Surprised"
+  ],
+  "gen-2/222-corsola": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/223-remoraid": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/224-octillery": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/226-mantine": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/225-delibird": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/227-skarmory": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/228-houndour": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/229-houndoom": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/230-kingdra": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/231-phanpy": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/232-donphan": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/234-stantler": [
+    "Normal",
+    "Happy"
+  ],
+  "gen-2/233-porygon2": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/236-tyrogue": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/235-smeargle": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/237-hitmontop": [
+    "Normal",
+    "Happy"
+  ],
+  "gen-2/240-magby": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/238-smoochum": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/239-elekid": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/241-miltank": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/242-blissey": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/244-entei": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/243-raikou": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/245-suicune": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/247-pupitar": [
+    "Normal"
+  ],
+  "gen-2/248-tyranitar": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/246-larvitar": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/249-lugia": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/250-ho-oh": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-2/251-celebi": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/252-treecko": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/253-grovyle": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/254-sceptile": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/256-combusken": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/255-torchic": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/257-blaziken": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/258-mudkip": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/259-marshtomp": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/260-swampert": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/261-poochyena": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/264-linoone": [
+    "Normal"
+  ],
+  "gen-3/262-mightyena": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/263-zigzagoon": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/265-wurmple": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/266-silcoon": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/268-cascoon": [
+    "Normal"
+  ],
+  "gen-3/267-beautifly": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/269-dustox": [
+    "Normal",
+    "Happy"
+  ],
+  "gen-3/270-lotad": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/272-ludicolo": [
+    "Normal"
+  ],
+  "gen-3/271-lombre": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/273-seedot": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/274-nuzleaf": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/275-shiftry": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/276-taillow": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/277-swellow": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/279-pelipper": [
+    "Normal",
+    "Happy",
+    "Surprised"
+  ],
+  "gen-3/278-wingull": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/280-ralts": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/281-kirlia": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/282-gardevoir": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/283-surskit": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/284-masquerain": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/285-shroomish": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/286-breloom": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/288-vigoroth": [
+    "Normal"
+  ],
+  "gen-3/287-slakoth": [
+    "Normal",
+    "Happy",
+    "Sad"
+  ],
+  "gen-3/289-slaking": [
+    "Normal",
+    "Joyous"
+  ],
+  "gen-3/290-nincada": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/291-ninjask": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/292-shedinja": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/293-whismur": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/295-exploud": [
+    "Normal"
+  ],
+  "gen-3/294-loudred": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/296-makuhita": [
+    "Normal",
+    "Happy",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/297-hariyama": [
+    "Normal"
+  ],
+  "gen-3/298-azurill": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/299-nosepass": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/300-skitty": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/301-delcatty": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/303-mawile": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/302-sableye": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/304-aron": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/305-lairon": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/306-aggron": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/307-meditite": [
+    "Normal"
+  ],
+  "gen-3/308-medicham": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/309-electrike": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/310-manectric": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/311-plusle": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/312-minun": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/313-volbeat": [
+    "Normal",
+    "Happy",
+    "Sad"
+  ],
+  "gen-3/314-illumise": [
+    "Normal",
+    "Happy",
+    "Joyous"
+  ],
+  "gen-3/315-roselia": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/316-gulpin": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/317-swalot": [
+    "Normal"
+  ],
+  "gen-3/318-carvanha": [
+    "Normal"
+  ],
+  "gen-3/319-sharpedo": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/320-wailmer": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/321-wailord": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/322-numel": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/323-camerupt": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/324-torkoal": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/325-spoink": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/326-grumpig": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/327-spinda": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/328-trapinch": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/329-vibrava": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/330-flygon": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/331-cacnea": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/332-cacturne": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/333-swablu": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/334-altaria": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/336-seviper": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/335-zangoose": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/337-lunatone": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/338-solrock": [
+    "Normal"
+  ],
+  "gen-3/339-barboach": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/340-whiscash": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/341-corphish": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/344-claydol": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/342-crawdaunt": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/343-baltoy": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/345-lileep": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/346-cradily": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/347-anorith": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/348-armaldo": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/349-feebas": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/350-milotic": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/351-castform": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/352-kecleon": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/353-shuppet": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/354-banette": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/355-duskull": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/356-dusclops": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/357-tropius": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/358-chimecho": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/359-absol": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/360-wynaut": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/361-snorunt": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/362-glalie": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/363-spheal": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/364-sealeo": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/365-walrein": [
+    "Normal"
+  ],
+  "gen-3/366-clamperl": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/367-huntail": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/368-gorebyss": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/369-relicanth": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/370-luvdisc": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/371-bagon": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/372-shelgon": [
+    "Normal"
+  ],
+  "gen-3/373-salamence": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/375-metang": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/374-beldum": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/376-metagross": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/377-regirock": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/378-regice": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/379-registeel": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/380-latias": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/381-latios": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/384-rayquaza": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/382-kyogre": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/383-groudon": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/385-jirachi": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-3/386-deoxys": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/387-turtwig": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/388-grotle": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/389-torterra": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/390-chimchar": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/391-monferno": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/392-infernape": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/393-piplup": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/394-prinplup": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/395-empoleon": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/396-starly": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/397-staravia": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/400-bibarel": [
+    "Normal"
+  ],
+  "gen-4/398-staraptor": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/399-bidoof": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/401-kricketot": [
+    "Normal"
+  ],
+  "gen-4/402-kricketune": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/403-shinx": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/404-luxio": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/405-luxray": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/406-budew": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/407-roserade": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/408-cranidos": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/409-rampardos": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/410-shieldon": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/411-bastiodon": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/412-burmy": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/413-wormadam": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/415-combee": [
+    "Normal",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/414-mothim": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/416-vespiquen": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/417-pachirisu": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/418-buizel": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/419-floatzel": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/420-cherubi": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/421-cherrim": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/422-shellos": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/423-gastrodon": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/424-ambipom": [
+    "Normal",
+    "Happy",
+    "Surprised"
+  ],
+  "gen-4/425-drifloon": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/426-drifblim": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/427-buneary": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/428-lopunny": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/429-mismagius": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/430-honchkrow": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/431-glameow": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/432-purugly": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/433-chingling": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/434-stunky": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/435-skuntank": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/436-bronzor": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/437-bronzong": [
+    "Normal"
+  ],
+  "gen-4/438-bonsly": [
+    "Normal",
+    "Sad"
+  ],
+  "gen-4/439-mime-jr": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/440-happiny": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/441-chatot": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/442-spiritomb": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/443-gible": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/444-gabite": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/445-garchomp": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/446-munchlax": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/447-riolu": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/448-lucario": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/449-hippopotas": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/450-hippowdon": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/451-skorupi": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/452-drapion": [
+    "Normal",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/453-croagunk": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/454-toxicroak": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/456-finneon": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/455-carnivine": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/457-lumineon": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/458-mantyke": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Surprised"
+  ],
+  "gen-4/459-snover": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/460-abomasnow": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/461-weavile": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/462-magnezone": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/464-rhyperior": [
+    "Normal"
+  ],
+  "gen-4/463-lickilicky": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/465-tangrowth": [
+    "Normal"
+  ],
+  "gen-4/466-electivire": [
+    "Normal",
+    "Happy",
+    "Pain"
+  ],
+  "gen-4/467-magmortar": [
+    "Normal",
+    "Surprised"
+  ],
+  "gen-4/468-togekiss": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/469-yanmega": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/471-glaceon": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/470-leafeon": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/473-mamoswine": [
+    "Normal",
+    "Pain"
+  ],
+  "gen-4/472-gliscor": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/474-porygon-z": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/475-gallade": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/476-probopass": [
+    "Normal",
+    "Pain"
+  ],
+  "gen-4/477-dusknoir": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/478-froslass": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/479-rotom": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/480-uxie": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/481-mesprit": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/482-azelf": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/483-dialga": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/484-palkia": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/485-heatran": [
+    "Normal",
+    "Pain"
+  ],
+  "gen-4/486-regigigas": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/487-giratina": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/488-cresselia": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/489-phione": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/490-manaphy": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/491-darkrai": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/492-shaymin": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ],
+  "gen-4/493-arceus": [
+    "Normal",
+    "Happy",
+    "Joyous",
+    "Sad",
+    "Surprised",
+    "Pain"
+  ]
+}

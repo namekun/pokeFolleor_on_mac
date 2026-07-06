@@ -34,7 +34,9 @@
       "assets/packs/*/*",
       "assets/packs/*/*/*",
       "assets/raw/*/*",
-      "assets/raw/*/*/*"
+      "assets/raw/*/*/*",
+      "assets/portraits/*",
+      "assets/portraits/*/*/*"
     ],
     "matches": ["<all_urls>"]
   }
