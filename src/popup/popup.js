@@ -149,8 +149,17 @@ document.addEventListener("DOMContentLoaded", () => {
   const GROWTH_LABELS = {
     evolvesAt: { en: (lv) => `Evolves at Lv.${lv}`, ko: (lv) => `Lv.${lv}에 진화` },
     finalForm: { en: "Final form", ko: "최종 진화형" },
-    chooseEvolution: { en: "Choose evolution:", ko: "진화를 선택하세요:" }
+    chooseEvolution: { en: "Choose evolution:", ko: "진화를 선택하세요:" },
+    hunger: { en: (pct) => `Hunger: ${pct}%`, ko: (pct) => `배고픔: ${pct}%` },
+    feedButton: { en: "Feed", ko: "밥 주기" }
   };
+  // Simple emoji-level gauge (per spec: no separate bar/animation system) --
+  // three tiers matching the same feel as HUNGER_SAD_THRESHOLD (70) in content.js.
+  function hungerEmoji(pct) {
+    if (pct >= 70) return "😣";
+    if (pct >= 30) return "😐";
+    return "😊";
+  }
 
   // Best-effort fetch of the evolution graph; silent fallback (nothing
   // locked) on failure -- same pattern as loadKoNames() below.
@@ -218,6 +227,15 @@ document.addEventListener("DOMContentLoaded", () => {
       const fn = GROWTH_LABELS.evolvesAt[CUR_LANG] || GROWTH_LABELS.evolvesAt.en;
       evolveHintEl.textContent = fn(minLevel);
     }
+
+    if (hungerLabelEl && hungerEmojiEl) {
+      const hunger = Math.max(0, Math.min(100, (GROWTH_DATA[dex3] && GROWTH_DATA[dex3].hunger) || 0));
+      const pct = Math.round(hunger);
+      const fn = GROWTH_LABELS.hunger[CUR_LANG] || GROWTH_LABELS.hunger.en;
+      hungerLabelEl.textContent = fn(pct);
+      hungerEmojiEl.textContent = hungerEmoji(pct);
+    }
+    if (feedBtnEl) feedBtnEl.textContent = GROWTH_LABELS.feedButton[CUR_LANG] || GROWTH_LABELS.feedButton.en;
   }
 
   function renderEvolveChoice() {
@@ -319,6 +337,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const evolveChoiceLabelEl = document.getElementById("evolveChoiceLabel");
   const evolveChoiceButtonsEl = document.getElementById("evolveChoiceButtons");
   const moodPreviewEl = document.getElementById("moodPreview");
+  const hungerLabelEl = document.getElementById("hungerLabel");
+  const hungerEmojiEl = document.getElementById("hungerEmoji");
+  const feedBtnEl = document.getElementById("feedBtn");
 
   // Defaults align with current content.js constants
   const DEFAULTS = {
@@ -481,6 +502,23 @@ document.addEventListener("DOMContentLoaded", () => {
       if (lang === CUR_LANG) return;
       save({ vcp1_lang: lang });
       applyLang(lang);
+      renderGrowthUI(); // refresh hunger/Feed labels (and evolve hint) for the new language
+    });
+  }
+
+  // Feed button — a storage write (fresh Date.now() each click, so
+  // storage.onChanged always fires), same "vcp1_feed_trigger" key the
+  // desktop tray's "Feed" item writes (see content.js's onChanged listener).
+  // NOT chrome.runtime.sendMessage: in a real (non-Electron) Chrome
+  // extension with no background page, runtime.sendMessage from a popup
+  // never reaches a content script in a tab (only tabs.sendMessage from a
+  // background context does) -- storage.onChanged is the mechanism already
+  // proven to reach content.js for vcp1_pack/vcp1_mode/etc. above.
+  // content.js's own triggerFeed() already guards re-entrancy/evolution/etc.,
+  // so this is a plain fire-and-forget click, no local disable/cooldown needed here.
+  if (feedBtnEl) {
+    feedBtnEl.addEventListener("click", () => {
+      try { chrome.storage.sync.set({ vcp1_feed_trigger: Date.now() }); } catch (_) {}
     });
   }
 

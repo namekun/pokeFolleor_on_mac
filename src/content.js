@@ -76,7 +76,9 @@ window.__VCP1_TEST_HOOKS__ = {
       level: levelForXp(xp),
       unlocked: Array.from(UNLOCKED),
       pendingEvolution: PENDING_EVOLUTION,
-      evolveFlashActive: EVOLVE.active
+      evolveFlashActive: EVOLVE.active,
+      hunger: (GROWTH[dex3] && GROWTH[dex3].hunger) || 0,
+      lastFedAt: (GROWTH[dex3] && GROWTH[dex3].lastFedAt) || 0
     };
   },
   flushGrowthNow() { growthDirty = true; flushGrowth(); },
@@ -86,7 +88,27 @@ window.__VCP1_TEST_HOOKS__ = {
   forceMood(emotion) { triggerMood(String(emotion || "Normal")); },
   getMoodSnapshot() {
     return { active: MOOD.active, url: MOOD.url, startedAt: MOOD.startedAt };
-  }
+  },
+  // Test-only entry points for the feeding system (see "feeding" section) --
+  // lets an automated harness drive the same real trigger a tray click/popup
+  // button would (triggerFeed), and force hunger to a specific value instead
+  // of waiting real-time for it to accrue.
+  triggerFeed() { triggerFeed(); },
+  setHunger(value) {
+    const dex3 = currentGrowthDex();
+    if (!dex3) return;
+    const rec = ensureGrowthRecord(dex3);
+    rec.hunger = Math.max(0, Math.min(HUNGER_MAX, Number(value) || 0));
+    growthDirty = true;
+  },
+  getFeedingSnapshot() {
+    return {
+      active: FEEDING.active,
+      phase: FEEDING.phase,
+      applePos: FEEDING.applePos ? { x: FEEDING.applePos.x, y: FEEDING.applePos.y } : null
+    };
+  },
+  setHungerSadCooldownMs(ms) { TEST_HUNGER_SAD_COOLDOWN_MS = (typeof ms === "number" && ms > 0) ? ms : null; }
 };
 
 function hasState(name) {
@@ -226,11 +248,13 @@ function pickRowForState(stateName, dx, dy) {
   // what's visibly happening on screen (cursor velocity can go stale the
   // moment the cursor stops, while the follower is still catching up).
   // At rest (idle/sleep) there's no travel direction, so always show front.
-  // "attack" (wander mode only) plays in place — target is pinned to pos, so
-  // dx/dy read ~0 — so face whichever direction it was last moving instead.
+  // "attack" (wander mode only) and "eat" (feeding, either mode) both play in
+  // place — target is pinned to pos, so dx/dy read ~0 — so face whichever
+  // direction it was last moving instead (WANDER.lastDir is updated by any
+  // actual movement toward a target, not just in wander mode -- see tick()).
   let dir8;
   if (stateName === "walk") dir8 = pickDir8FromVector(dx, dy);
-  else if (stateName === "attack") dir8 = pickDir8FromVector(WANDER.lastDir.x, WANDER.lastDir.y);
+  else if (stateName === "attack" || stateName === "eat") dir8 = pickDir8FromVector(WANDER.lastDir.x, WANDER.lastDir.y);
   else dir8 = "front";
   if (dir8 in rows) return rows[dir8];
 
@@ -391,6 +415,10 @@ function resetAnimationForNewPack() {
   // portrait after switching -- the next renderMoodBubble() call (within one
   // frame) hides the DOM element once it sees this flag cleared.
   MOOD.active = false;
+  // A feed mid-walk/eat targeting the OLD pack's states.eat (which the new
+  // pack may not have) must not carry over -- cancel it and remove the apple
+  // rather than leaving either stuck.
+  resetFeeding();
 }
 
 // --- evolution / growth (XP) engine ---
@@ -405,6 +433,28 @@ const XP_PER_ACTIVE_MINUTE = 0.5;    // time: awarded once per full minute the e
 const XP_PER_PIXEL_MOVED   = 0.0015; // distance: per px of actual sprite movement (RUNTIME.pos delta in tick())
 const XP_PER_HOVER_ATTACK  = 20;     // interaction: flat bonus per user-triggered hover attack (see triggerHoverAttack)
 const LEVEL_XP_BASE = 5; // xpForLevel(L) = LEVEL_XP_BASE * (L-1)^2 -- cumulative XP required to BE level L
+
+// --- hunger (Phase 3 feeding) ---
+// Rises continuously with active engine time (same "engine is ticking" signal
+// XP_PER_ACTIVE_MINUTE uses), reaching HUNGER_MAX after about 4 active hours
+// with no feeding -- see the per-tick update in tick(). Feeding (see
+// endFeeding() above) always resets it to 0.
+const HUNGER_MAX = 100;
+const HUNGER_FULL_MS = 4 * 60 * 60 * 1000; // ~4 active hours: 0 (full) -> HUNGER_MAX (hungry)
+// "Sad" (hungry) trigger: same MOOD cooldown pattern as the idle-based Sad
+// below (SAD_IDLE_MS/SAD_COOLDOWN_MS), just gated on hunger instead of idle
+// time, and tracked with its own cooldown timestamp so the two triggers
+// don't interfere with each other's rate limit.
+const HUNGER_SAD_THRESHOLD = 70;
+const HUNGER_SAD_COOLDOWN_MS = 30 * 60 * 1000;
+let lastHungrySadShownAt = 0;
+// Test-only override, same pattern/purpose as TEST_SLEEP_TIMEOUT_MS above:
+// lastHungrySadShownAt starts at 0, so the real 30-minute cooldown otherwise
+// blocks the very first hungry-Sad trigger until the engine has been running
+// for 30 real minutes -- lets a CDP harness dial that down to something it
+// can actually wait out. Inert unless a test explicitly calls it.
+let TEST_HUNGER_SAD_COOLDOWN_MS = null;
+function hungerSadCooldownMs() { return TEST_HUNGER_SAD_COOLDOWN_MS ?? HUNGER_SAD_COOLDOWN_MS; }
 
 function xpForLevel(level) {
   const n = Math.max(1, level) - 1;
@@ -458,6 +508,20 @@ const EVOLVE = { active: false, startedAt: 0 }; // drives the flash filter in ap
 function currentGrowthDex() {
   const dex = dexFromSlug(packSlug());
   return Number.isFinite(dex) ? String(dex).padStart(3, "0") : "";
+}
+
+// Get-or-create a dex3's growth record, backfilling hunger/lastFedAt (Phase 3
+// fields) onto an older record that only ever had `xp` -- returns the SAME
+// object stored in GROWTH so callers mutate it in place rather than replacing
+// the record wholesale (see awardXP() below, which used to do exactly that
+// and would have silently wiped these fields on every single XP grant).
+function ensureGrowthRecord(dex3) {
+  if (!GROWTH[dex3]) GROWTH[dex3] = { xp: 0, hunger: 0, lastFedAt: 0 };
+  const rec = GROWTH[dex3];
+  if (typeof rec.xp !== "number") rec.xp = 0;
+  if (typeof rec.hunger !== "number") rec.hunger = 0;
+  if (typeof rec.lastFedAt !== "number") rec.lastFedAt = 0;
+  return rec;
 }
 
 async function fetchJsonAsset(rel, fallback) {
@@ -569,7 +633,17 @@ function flushGrowth() {
       for (const dex of Object.keys(toWrite)) {
         const storedXp = (stored[dex] && stored[dex].xp) || 0;
         const localXp = toWrite[dex].xp || 0;
-        merged[dex] = { xp: Math.max(storedXp, localXp) };
+        // hunger: not monotonic like xp (feeding resets it), so the flushing
+        // tab's own value simply wins rather than taking a max -- correct for
+        // the common single-engine case (desktop's one engine window; the
+        // extension's usual one active tab) this app is actually built for.
+        const storedHunger = (stored[dex] && stored[dex].hunger) || 0;
+        const localHunger = (typeof toWrite[dex].hunger === "number") ? toWrite[dex].hunger : storedHunger;
+        // lastFedAt IS monotonic (a feed timestamp only ever moves forward),
+        // so max is safe/correct here same as xp.
+        const storedFedAt = (stored[dex] && stored[dex].lastFedAt) || 0;
+        const localFedAt = (typeof toWrite[dex].lastFedAt === "number") ? toWrite[dex].lastFedAt : 0;
+        merged[dex] = { xp: Math.max(storedXp, localXp), hunger: localHunger, lastFedAt: Math.max(storedFedAt, localFedAt) };
       }
       // Only actually remove a deleted dex if nothing re-added it in the same
       // flush (defensive; in-memory GROWTH never does this today).
@@ -588,10 +662,11 @@ function awardXP(amount) {
   if (!growthLoaded || !(amount > 0)) return;
   const dex3 = currentGrowthDex();
   if (!dex3) return;
-  const prevXp = (GROWTH[dex3] && GROWTH[dex3].xp) || 0;
+  const rec = ensureGrowthRecord(dex3);
+  const prevXp = rec.xp || 0;
   const prevLevel = levelForXp(prevXp);
   const nextXp = prevXp + amount;
-  GROWTH[dex3] = { xp: nextXp };
+  rec.xp = nextXp; // mutate in place -- preserves hunger/lastFedAt on the same record
   growthDirty = true;
   const nextLevel = levelForXp(nextXp);
   if (nextLevel > prevLevel) {
@@ -703,8 +778,18 @@ function applyFrame() {
   const localY = RUNTIME.pos.y - originY;
 
   const SCALE_VAL = CONFIG.scale;
+  // CSS-bounce fallback for feeding on packs with no states.eat (see
+  // startEatPhase()): a small vertical hop, cycling continuously for the
+  // phase's duration. Folded directly into the same y used below (both for
+  // this window's own transform AND the value relayed to mirrors), so mirror
+  // windows reproduce the hop with zero extra code on their side.
+  let feedBounceY = 0;
+  if (FEEDING.active && FEEDING.phase === "bounce") {
+    const bt = ((performance.now() - FEEDING.phaseStartedAt) % FEED_BOUNCE_MS) / FEED_BOUNCE_MS;
+    feedBounceY = -Math.abs(Math.sin(bt * Math.PI)) * FEED_BOUNCE_HEIGHT_PX;
+  }
   followerEl.style.transform =
-    `translate(${Math.round(localX)}px, ${Math.round(localY)}px) ` +
+    `translate(${Math.round(localX)}px, ${Math.round(localY + feedBounceY)}px) ` +
     `translate(-50%, -50%) ` +
     `scale(${SCALE_VAL})`;
   followerEl.style.transformOrigin = "center center";
@@ -721,17 +806,23 @@ function applyFrame() {
   // is active) and hands back the payload to relay to mirrors below.
   const moodPayload = renderMoodBubble();
 
+  // Apple: positions this window's own apple element (drop-in fall animation)
+  // while a feed is in progress, and hands back the payload to relay to
+  // mirrors below -- same pattern as the mood bubble above.
+  const applePayload = renderApple();
+
   // Desktop app only: hand a snapshot of what was just painted to any mirror
   // windows on other displays, so they can render the same sprite without
   // running this engine themselves. Undefined (and this whole block skipped)
   // in the Chrome extension and in the desktop app's own engine-less windows.
   if (window.__VCP1_SNAPSHOT_SINK__) {
     window.__VCP1_SNAPSHOT_SINK__({
-      x: RUNTIME.pos.x, y: RUNTIME.pos.y,
+      x: RUNTIME.pos.x, y: RUNTIME.pos.y + feedBounceY,
       w, h, bgImage: sheetUrl, bpx, bpy,
       bgSizeW: img?.naturalWidth || 0, bgSizeH: img?.naturalHeight || 0,
       scale: SCALE_VAL, filter: evolveFilter,
-      mood: moodPayload
+      mood: moodPayload,
+      apple: applePayload
     });
   }
 }
@@ -964,6 +1055,7 @@ const HOVER = {
 };
 
 function updateHover(now) {
+  if (FEEDING.active) { HOVER.inside = false; return; } // never layer hover-attack on top of an in-progress feed
   if (!hasState("attack")) { HOVER.inside = false; return; } // no attack sheet -> ignore hover entirely
   const st = RUNTIME.meta.states[RUNTIME.anim.name] || RUNTIME.meta.states.idle;
   const halfW = (st.frame.w * CONFIG.scale) / 2;
@@ -1009,6 +1101,217 @@ function endHoverAttack(now) {
   // instant the attack ends — idle-triggered "sleep" already wakes on its own
   // (see tickWander) since the hover's mousemove just refreshed lastMoveTs.
   if (STATE.mode === "wander" && WANDER.state === "nap") enterRoam();
+}
+
+// --- feeding: apple-drop + walk-to-eat sequence, triggered by the tray menu
+// (desktop) or a Settings button (popup/extension) -- both land on the same
+// "vcp1_feed_trigger" storage write (see the chrome.storage.onChanged
+// listener near the bottom of this file). Interrupts whichever mode is
+// active (follow or wander) the same way HOVER's attack freeze does: pins
+// the travel target and overrides the desired animation state (see tick()),
+// then hands control back to
+// whatever the underlying FSM was doing once the sequence completes -- no
+// explicit "resume" bookkeeping needed since wander's own state/timers are
+// simply frozen (not reset) for the duration.
+const FEED_XP_BONUS = 30;
+const FEED_COOLDOWN_MS = 30 * 60 * 1000;        // 30 min between XP-granting feeds (spam guard)
+const FEED_DROP_MIN_PX = 100, FEED_DROP_MAX_PX = 200; // apple lands 100-200px from the sprite
+const FEED_ARRIVE_RADIUS_PX = 10;
+const FEED_FALL_MS = 400;            // apple's drop-in CSS animation duration
+const FEED_WALK_BACKSTOP_MS = 10000; // wall-clock backstop for the whole walk-to-apple leg
+const FEED_BOUNCE_CYCLES = 3;        // CSS-bounce fallback repeat count (packs with no states.eat)
+const FEED_BOUNCE_MS = 260;          // one bounce up-down cycle duration
+const FEED_BOUNCE_HEIGHT_PX = 10;    // peak height of the CSS bounce hop
+
+const FEEDING = {
+  active: false,        // true for the whole walk-to-apple + eat/bounce sequence
+  phase: null,          // "walk" | "eat" | "bounce"
+  applePos: null,       // { x, y } global coords of the dropped apple, or null
+  appleDroppedAt: 0,    // performance.now() when the apple appeared (drives its fall-in animation)
+  phaseStartedAt: 0,    // performance.now() when the current phase (eat/bounce) began
+  eatCyclesLeft: 0,
+  until: 0              // wall-clock backstop for the whole sequence, mirrors enterAttack()'s pattern
+};
+
+// Small original 16x16 pixel-art apple (hand-authored geometry, not sourced
+// from PMD SpriteCollab or any other third-party asset -- unlike the sprite
+// sheets, this is art this project owns outright, so a plain data: URI needs
+// no extension manifest entry or poke:// path plumbing in either environment).
+const APPLE_SIZE_PX = 16;
+const APPLE_DATA_URI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAApklEQVR42mNgGNQgxkrxPwMDA4PPArf/enl6/7GpYSLWMDkjCQZchhDlCpLBYgkJuMYPKVE4DWHEpdFUSIhBwsoAQ4PAnGWMOA1YLCHx31RIiEF9SgMDAwMDw8dlG7DaimwIPBBvaGn9NxUSgiu6mdNAlPcYkQ0gJmxOv3vHwMDAwBD74gUjSdGIrJmsdIBNM9EG4NJMMBqxaYb5HacB2EIam0aqAQDmajk2Ztb5vAAAAABJRU5ErkJggg==";
+
+let appleEl = null;
+function createAppleElement() {
+  if (appleEl) return;
+  appleEl = document.createElement("div");
+  appleEl.id = "__vcp1_apple";
+  Object.assign(appleEl.style, {
+    position: "fixed",
+    left: "0px",
+    top: "0px",
+    width: `${APPLE_SIZE_PX}px`,
+    height: `${APPLE_SIZE_PX}px`,
+    backgroundImage: `url("${APPLE_DATA_URI}")`,
+    backgroundSize: "contain",
+    backgroundRepeat: "no-repeat",
+    imageRendering: "pixelated",
+    pointerEvents: "none",
+    zIndex: "2147483646", // just under the follower sprite (2147483647)
+    willChange: "transform"
+  });
+  document.documentElement.appendChild(appleEl);
+}
+function removeAppleElement() {
+  if (appleEl?.parentNode) appleEl.parentNode.removeChild(appleEl);
+  appleEl = null;
+}
+
+// Ends the whole feeding sequence unconditionally (natural completion OR the
+// wall-clock backstop) -- always tears down the apple element so a timed-out
+// sequence can never leave a stuck ghost apple on screen.
+function resetFeeding() {
+  FEEDING.active = false;
+  FEEDING.phase = null;
+  FEEDING.applePos = null;
+  removeAppleElement();
+}
+
+// Pick a point 100-200px from the sprite's current position, clamped inside
+// the viewport/world bounds (reuses the same world-aware bounds getWorldInfo()
+// already gives clampToViewport() above). A handful of random polar attempts
+// avoids biasing toward any one direction; if every attempt lands out of
+// bounds (e.g. a tiny viewport), fall back to a straight clamp.
+function pickAppleDropPoint() {
+  const margin = 16;
+  const world = getWorldInfo();
+  const bounds = world ? world.union : { x: 0, y: 0, w: window.innerWidth, h: window.innerHeight };
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = randRange(FEED_DROP_MIN_PX, FEED_DROP_MAX_PX);
+    const x = RUNTIME.pos.x + Math.cos(angle) * dist;
+    const y = RUNTIME.pos.y + Math.sin(angle) * dist;
+    if (x >= bounds.x + margin && x <= bounds.x + bounds.w - margin &&
+        y >= bounds.y + margin && y <= bounds.y + bounds.h - margin) {
+      return { x, y };
+    }
+  }
+  const pt = {
+    x: RUNTIME.pos.x + randRange(-FEED_DROP_MAX_PX, FEED_DROP_MAX_PX),
+    y: RUNTIME.pos.y + randRange(-FEED_DROP_MAX_PX, FEED_DROP_MAX_PX)
+  };
+  const maxX = Math.max(bounds.x + margin, bounds.x + bounds.w - margin);
+  const maxY = Math.max(bounds.y + margin, bounds.y + bounds.h - margin);
+  pt.x = Math.min(Math.max(pt.x, bounds.x + margin), maxX);
+  pt.y = Math.min(Math.max(pt.y, bounds.y + margin), maxY);
+  return pt;
+}
+
+// Entry point for both the tray menu (desktop) and the Settings "Feed"
+// button (popup/extension) -- see the "vcp1_feed_trigger" storage.onChanged
+// listener near the bottom of this file. Guarded the same way other interrupts guard
+// themselves: never during an evolution flash, never re-entrant while
+// already feeding, never layered on top of an in-progress hover-attack or a
+// self-rolled wander attack (avoids two animation states fighting over the
+// same sprite).
+function triggerFeed() {
+  if (!running || !followerEl || !RUNTIME.meta) return;
+  if (EVOLVE.active || FEEDING.active || HOVER.active) return;
+  if (STATE.mode === "wander" && WANDER.state === "attack") return;
+  const wp = pickAppleDropPoint();
+  const now = performance.now();
+  FEEDING.active = true;
+  FEEDING.phase = "walk";
+  FEEDING.applePos = wp;
+  FEEDING.appleDroppedAt = now;
+  // Wall-clock backstop covering the whole walk leg -- if the sprite somehow
+  // never arrives (e.g. an extreme edge case in target clamping), this still
+  // forces a clean exit instead of leaving FEEDING stuck forever.
+  FEEDING.until = now + FEED_WALK_BACKSTOP_MS;
+  createAppleElement();
+}
+
+// Called once the walk leg arrives at the apple (see tickFeeding()). Picks
+// the real Eat-Anim cycle (states.eat, mirroring enterAttack()'s 1-2 cycle
+// budget) when the current pack has one, else the CSS-bounce fallback that
+// works for every pack regardless of asset coverage.
+function startEatPhase(now) {
+  FEEDING.phaseStartedAt = now;
+  if (hasState("eat")) {
+    FEEDING.phase = "eat";
+    FEEDING.eatCyclesLeft = 1 + Math.floor(Math.random() * 2); // 1 or 2 full cycles
+    const st = RUNTIME.meta.states.eat;
+    const cycleMs = (st && st.fps) ? (st.frames / st.fps) * 1000 : 1000;
+    FEEDING.until = now + FEEDING.eatCyclesLeft * cycleMs + 1000;
+  } else {
+    FEEDING.phase = "bounce";
+    FEEDING.until = now + FEED_BOUNCE_CYCLES * FEED_BOUNCE_MS + 1000;
+  }
+}
+
+// Advances the walk/bounce legs of the sequence (the "eat" leg's natural
+// completion is instead driven by frame-cycle counting in tick()'s animation
+// stepper, exactly mirroring WANDER.attackCyclesLeft -- see there). `completed`
+// distinguishes a real finish (awards XP/mood) from the wall-clock backstop
+// firing on a stuck sequence (silent cleanup only).
+function tickFeeding(now) {
+  if (!FEEDING.active) return;
+  if (now >= FEEDING.until) { endFeeding(now, false); return; }
+  if (FEEDING.phase === "walk") {
+    const dx = FEEDING.applePos.x - RUNTIME.pos.x;
+    const dy = FEEDING.applePos.y - RUNTIME.pos.y;
+    if (Math.hypot(dx, dy) <= FEED_ARRIVE_RADIUS_PX) startEatPhase(now);
+  } else if (FEEDING.phase === "bounce") {
+    if (now - FEEDING.phaseStartedAt >= FEED_BOUNCE_CYCLES * FEED_BOUNCE_MS) endFeeding(now, true);
+  }
+}
+
+function endFeeding(now, completed) {
+  removeAppleElement();
+  FEEDING.active = false;
+  FEEDING.phase = null;
+  FEEDING.applePos = null;
+  if (completed) {
+    const dex3 = currentGrowthDex();
+    if (dex3) {
+      const rec = ensureGrowthRecord(dex3);
+      // Wall-clock (Date.now()), not performance.now(): this must survive a
+      // restart, unlike every other timestamp in this file.
+      const wallNow = Date.now();
+      const cooledDown = (wallNow - (rec.lastFedAt || 0)) >= FEED_COOLDOWN_MS;
+      rec.hunger = 0; // feeding always satisfies hunger, cooldown or not
+      growthDirty = true;
+      if (cooledDown) {
+        rec.lastFedAt = wallNow; // only the *rewarded* feed resets the cooldown clock
+        awardXP(FEED_XP_BONUS);
+      }
+      flushGrowth(); // persist promptly, mirrors the evolution/level-up flush-now pattern
+    }
+    triggerMood("Joyous");
+  }
+}
+
+// Positions the apple element (drop-in fall animation) and returns the
+// payload to relay to mirror windows, same shape/spirit as
+// renderMoodBubble(). Returns null once no apple is showing.
+function renderApple() {
+  if (!FEEDING.active || !FEEDING.applePos) {
+    if (appleEl) appleEl.style.display = "none";
+    return null;
+  }
+  if (!appleEl) createAppleElement();
+  appleEl.style.display = "block";
+  const elapsed = performance.now() - FEEDING.appleDroppedAt;
+  const fallT = Math.min(1, elapsed / FEED_FALL_MS);
+  const eased = 1 - Math.pow(1 - fallT, 3); // ease-out cubic settle
+  const dropOffsetPx = (1 - eased) * -40;   // starts 40px above, eases down to 0
+
+  const world = getWorldInfo();
+  const originX = world ? world.origin.x : 0;
+  const originY = world ? world.origin.y : 0;
+  const gx = FEEDING.applePos.x;
+  const gy = FEEDING.applePos.y + dropOffsetPx;
+  appleEl.style.transform = `translate(${Math.round(gx - originX)}px, ${Math.round(gy - originY)}px) translate(-50%, -50%)`;
+  return { x: FEEDING.applePos.x, y: FEEDING.applePos.y, dropOffsetPx };
 }
 
 // --- mood bubble: a small floating portrait that pops up above the sprite's
@@ -1170,7 +1473,7 @@ function renderMoodBubble() {
 // a cursor that's genuinely passing through right now is by definition
 // recent, so legitimate Surprised triggers are unaffected.
 function updateSurprise(now) {
-  if (!RUNTIME.meta?.states || HOVER.active) return; // don't layer Surprised on top of an in-progress attack
+  if (!RUNTIME.meta?.states || HOVER.active || FEEDING.active) return; // don't layer Surprised on top of an in-progress attack or feed
   if (now - lastSurprisedAt < SURPRISE_COOLDOWN_MS) return;
   if (now - RUNTIME.lastMoveTs >= HOVER_RECENCY_MS) return; // stale instant-speed reading -- cursor isn't actually moving right now
   const st = RUNTIME.meta.states[RUNTIME.anim.name] || RUNTIME.meta.states.idle;
@@ -1195,8 +1498,28 @@ function tick(dtMs) {
     awardXP(XP_PER_ACTIVE_MINUTE);
   }
 
+  // Hunger: rises continuously with active engine time (same "engine is
+  // ticking" signal as the XP-per-minute source above), reaching HUNGER_MAX
+  // after HUNGER_FULL_MS with no feeding. Feeding resets it in endFeeding().
+  if (growthLoaded) {
+    const hungerDex3 = currentGrowthDex();
+    if (hungerDex3) {
+      const rec = ensureGrowthRecord(hungerDex3);
+      const nextHunger = Math.min(HUNGER_MAX, rec.hunger + dtMs * (HUNGER_MAX / HUNGER_FULL_MS));
+      if (nextHunger !== rec.hunger) { rec.hunger = nextHunger; growthDirty = true; }
+      // "Sad" (hungry): same cooldown-gated MOOD pattern as the idle-based Sad
+      // below, just on hunger instead of idle time, with its own cooldown
+      // timestamp so the two triggers rate-limit independently.
+      if (rec.hunger > HUNGER_SAD_THRESHOLD && now - lastHungrySadShownAt > hungerSadCooldownMs()) {
+        lastHungrySadShownAt = now;
+        triggerMood("Sad");
+      }
+    }
+  }
+
   updateHover(now);
   updateSurprise(now);
+  tickFeeding(now);
 
   // "Sad" (bored): the cursor hasn't moved at all in a long while -- rate
   // limited so it can only nag once per cooldown window, not every tick.
@@ -1205,7 +1528,11 @@ function tick(dtMs) {
     triggerMood("Sad");
   }
 
-  if (STATE.mode === "wander") {
+  if (FEEDING.active) {
+    // Frozen: neither the wander FSM's own transitions nor follow mode's
+    // cursor-retargeting run while a feed is in progress -- see the target
+    // override just below, which pins RUNTIME.target for the duration.
+  } else if (STATE.mode === "wander") {
     tickWander(now);
   } else {
     // Once mousemove events stop arriving (cursor idle, or the desktop app's
@@ -1227,9 +1554,22 @@ function tick(dtMs) {
     computeTarget();
   }
 
-  // Hover-triggered attack freezes the follower in place, regardless of mode —
-  // overriding whatever target the branch above just computed.
-  if (HOVER.active) {
+  // Feeding overrides the travel target regardless of mode, same slot as
+  // HOVER's freeze below: walk toward the apple while phase is "walk", stand
+  // still once "eat"/"bounce" takes over. Checked first so an in-progress
+  // feed always wins (triggerFeed() already refuses to start one while
+  // HOVER.active, but this keeps the precedence explicit either way).
+  if (FEEDING.active) {
+    if (FEEDING.phase === "walk" && FEEDING.applePos) {
+      RUNTIME.target.x = FEEDING.applePos.x;
+      RUNTIME.target.y = FEEDING.applePos.y;
+    } else {
+      RUNTIME.target.x = RUNTIME.pos.x;
+      RUNTIME.target.y = RUNTIME.pos.y;
+    }
+  } else if (HOVER.active) {
+    // Hover-triggered attack freezes the follower in place, regardless of
+    // mode — overriding whatever target the branch above just computed.
     RUNTIME.target.x = RUNTIME.pos.x;
     RUNTIME.target.y = RUNTIME.pos.y;
   }
@@ -1240,6 +1580,11 @@ function tick(dtMs) {
 
   let desired = STATE.mode === "wander" ? wanderDesiredState() : pickStateBySpeed();
   if (HOVER.active) desired = "attack";
+  if (FEEDING.active) {
+    if (FEEDING.phase === "walk") desired = "walk";
+    else if (FEEDING.phase === "eat") desired = "eat";
+    else desired = "idle"; // "bounce" fallback: plain idle sprite, the hop is a CSS offset in applyFrame()
+  }
   // Captured before the switch below can change RUNTIME.anim.name -- used
   // after the switch to detect the "sleep" -> anything-else edge (waking
   // up), for the "Normal" mood trigger. Covers both follow-mode's idle sleep
@@ -1256,11 +1601,12 @@ function tick(dtMs) {
     const timedOut = (performance.now() - RUNTIME.pendingState.queuedAt) > 300;
     if (atCycleEnd || timedOut) {
       const enteringAttack = RUNTIME.pendingState.name === "attack";
+      const enteringEat = RUNTIME.pendingState.name === "eat";
       RUNTIME.anim.name = RUNTIME.pendingState.name;
       RUNTIME.anim.row  = pickRowForState(RUNTIME.anim.name, dx, dy);
-      // Start attack cleanly from its first frame so cycle-counting below
-      // (which needs a real wraparound to detect "one full cycle") is exact.
-      if (enteringAttack) { RUNTIME.anim.frame = 0; RUNTIME.anim.accMs = 0; }
+      // Start attack/eat cleanly from their first frame so cycle-counting
+      // below (which needs a real wraparound to detect "one full cycle") is exact.
+      if (enteringAttack || enteringEat) { RUNTIME.anim.frame = 0; RUNTIME.anim.accMs = 0; }
       RUNTIME.pendingState = null;
     }
   } else {
@@ -1304,6 +1650,12 @@ function tick(dtMs) {
       HOVER.cyclesLeft -= 1;
       if (HOVER.cyclesLeft <= 0) endHoverAttack(now);
     }
+    // Count full Eat-Anim loops the same way, then hand control back once the
+    // 1-2 cycle budget from startEatPhase() is spent (see tickFeeding()).
+    if (FEEDING.active && FEEDING.phase === "eat" && RUNTIME.anim.name === "eat" && RUNTIME.anim.frame < prevFrame) {
+      FEEDING.eatCyclesLeft -= 1;
+      if (FEEDING.eatCyclesLeft <= 0) endFeeding(now, true);
+    }
   }
 
   // Keep the row updated continuously for natural facing
@@ -1323,6 +1675,7 @@ function teardownInvalidatedContext() {
   stopLocalPoll();
   removeFollower();
   removeMoodBubble();
+  resetFeeding();
   running = false;
 }
 
@@ -1399,6 +1752,7 @@ function stop() {
   window.removeEventListener("mousemove", onMouseMove);
   removeFollower();
   removeMoodBubble();
+  resetFeeding();
 }
 
 async function loadPack(packKey) {
@@ -1503,6 +1857,20 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
       // over from wherever the follower currently stands.
       if (nextMode === "follow") WANDER.state = null;
     }
+  }
+  // Feed trigger -- same entry point for the desktop tray's "Feed" item and
+  // the popup/extension Settings "Feed" button (see main.cjs/popup.js). Uses
+  // a storage write (a fresh Date.now() each time, so onChanged always fires)
+  // rather than chrome.runtime.sendMessage: in a real unpacked/published
+  // Chrome extension with no background page, runtime.sendMessage from a
+  // popup is only delivered to other extension pages, NOT to a content
+  // script in a tab (that requires tabs.sendMessage(tabId, ...) from a
+  // background context, which this extension doesn't have) -- confirmed by
+  // hand against a real loaded extension. storage.onChanged, in contrast,
+  // already reliably reaches this listener for vcp1_pack/vcp1_mode/etc.
+  // above, so feeding reuses that same proven path instead.
+  if (changes.vcp1_feed_trigger) {
+    triggerFeed();
   }
 });
 

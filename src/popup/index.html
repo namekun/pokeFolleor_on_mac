@@ -239,6 +239,21 @@
     }
     .xpBarFill { height: 100%; width: 0%; background: #EF4036; }
 
+    /* Hunger: simple gauge + Feed button (Phase 3) -- deliberately kept at
+       the same "emoji + small readout" level as the rest of this panel, no
+       separate bar/animation system. */
+    .hungerRow {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-top: 6px; font-weight: 800; font-size: 12px;
+    }
+    .hungerLeft { display: inline-flex; align-items: center; gap: 4px; }
+    #feedBtn {
+      border: 1.5px solid #000; border-radius: 6px; background: #fff;
+      font-weight: 700; font-size: 11px; padding: 4px 10px; cursor: pointer;
+    }
+    #feedBtn:hover { background: #EF4036; color: #fff; }
+    #feedBtn:disabled { opacity: 0.5; cursor: default; background: #fff; color: inherit; }
+
     /* Branch evolution choice (e.g. Eevee) -- hidden unless pending */
     .evolveChoice {
       margin: 8px auto 0; width: 240px; text-align: center;
@@ -369,6 +384,13 @@
         <span id="evolveHint"></span>
       </div>
       <div class="xpBarTrack"><div class="xpBarFill" id="xpBarFill"></div></div>
+      <div class="hungerRow">
+        <span class="hungerLeft">
+          <span id="hungerEmoji" aria-hidden="true">🍎</span>
+          <span id="hungerLabel">Hunger: 0%</span>
+        </span>
+        <button type="button" id="feedBtn">Feed</button>
+      </div>
     </div>
 
     <!-- Branch evolution choice (e.g. Eevee) -- hidden unless pending -->
