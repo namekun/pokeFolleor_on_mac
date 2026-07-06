@@ -228,6 +228,15 @@ function refreshTray() {
     },
     { label: "Settings…", click: openSettings },
     { type: "separator" },
+    // Same storageSet() path vcp1_enabled uses above -- writes a fresh
+    // Date.now() each click (so storage.onChanged always fires) and
+    // broadcasts to every window. content.js's chrome.storage.onChanged
+    // listener (the "vcp1_feed_trigger" branch) picks it up exactly like the
+    // popup's Feed button does (see popup.js) -- both real Chrome storage
+    // writes, not chrome.runtime.sendMessage (which doesn't reach a content
+    // script without a background-page relay in a real, non-Electron extension).
+    { label: "밥 주기 / Feed", click: () => storageSet("sync", { vcp1_feed_trigger: Date.now() }) },
+    { type: "separator" },
     { label: "Quit PokéFollower", click: () => app.quit() }
   ]));
 }
