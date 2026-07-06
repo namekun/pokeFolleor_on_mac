@@ -698,7 +698,7 @@ function checkEvolution(dex3, level) {
 
 // Executes an evolution: white-silhouette flash, then the pack switch. Used
 // both for an automatic single-path evolution and a user-chosen branch pick
-// (from Settings, via the "vcp1_evolve" runtime message below).
+// (from Settings, via the "vcp1_evolve_trigger" storage.onChanged listener below).
 function evolveTo(fromDex3, toDex3) {
   // Reentrancy guard: a second trigger while a flash is already in progress
   // (e.g. a double-clicked branch-choice button, both messages landing
@@ -1872,6 +1872,25 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
   if (changes.vcp1_feed_trigger) {
     triggerFeed();
   }
+  // User's branch-evolution pick from Settings (e.g. which Eevee evolution) --
+  // same storage-write pattern as vcp1_feed_trigger above (a fresh {to, ts}
+  // object each click, so onChanged always fires), replacing a prior
+  // chrome.runtime.sendMessage({type:"vcp1_evolve",...}) implementation: in a
+  // real unpacked/published Chrome extension with no background page,
+  // runtime.sendMessage from a popup never reaches a content script (only
+  // tabs.sendMessage from a background context does) -- confirmed by hand
+  // against a real loaded extension, the same gap found and fixed for
+  // feeding. Not read at boot (see the chrome.storage.sync.get() list above,
+  // which deliberately omits this key) -- only a genuine post-registration
+  // onChanged fire can trigger an evolution, so a value already sitting in
+  // storage from a previous session can never replay on the next boot.
+  if (changes.vcp1_evolve_trigger) {
+    const pick = changes.vcp1_evolve_trigger.newValue;
+    const dex = pick && pick.to;
+    if (dex && PENDING_EVOLUTION && PENDING_EVOLUTION.choices.some((c) => c.dex === dex)) {
+      evolveTo(PENDING_EVOLUTION.dex, dex);
+    }
+  }
 });
 
 // listen for live slider updates and drag state from popup.js
@@ -1881,14 +1900,6 @@ chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === "vcp1_config" && msg.patch) {
     applyConfigPatch(msg.patch);
     if (followerEl && RUNTIME.meta) applyFrame();
-    return;
-  }
-
-  // User's branch-evolution pick from Settings (e.g. which Eevee evolution).
-  if (msg.type === "vcp1_evolve" && msg.dex) {
-    if (PENDING_EVOLUTION && PENDING_EVOLUTION.choices.some((c) => c.dex === msg.dex)) {
-      evolveTo(PENDING_EVOLUTION.dex, msg.dex);
-    }
     return;
   }
 

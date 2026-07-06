@@ -258,7 +258,18 @@ document.addEventListener("DOMContentLoaded", () => {
         // clears PENDING_EVOLUTION (and re-hides this section) isn't
         // instant, so a fast second click here shouldn't even get a chance to fire.
         Array.from(evolveChoiceButtonsEl.querySelectorAll("button")).forEach((b) => { b.disabled = true; });
-        try { chrome.runtime.sendMessage({ type: "vcp1_evolve", dex: choice.dex }); } catch (_) {}
+        // Storage write (fresh {to, ts} object each click, so onChanged
+        // always fires), same "vcp1_feed_trigger" pattern used by the Feed
+        // button above. NOT chrome.runtime.sendMessage: in a real
+        // (non-Electron) Chrome extension with no background page,
+        // runtime.sendMessage from a popup never reaches a content script in
+        // a tab (only tabs.sendMessage from a background context does) --
+        // this silently broke branch-evolution picking (e.g. Eevee) in a
+        // real browser install, only appearing to work in the Electron
+        // desktop app because its shim broadcasts messages to all windows
+        // directly. storage.onChanged is the mechanism already proven to
+        // reach content.js for vcp1_pack/vcp1_mode/vcp1_feed_trigger/etc.
+        try { chrome.storage.sync.set({ vcp1_evolve_trigger: { to: choice.dex, ts: Date.now() } }); } catch (_) {}
       });
       evolveChoiceButtonsEl.appendChild(btn);
     }
