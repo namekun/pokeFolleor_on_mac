@@ -677,7 +677,12 @@ function flushGrowth() {
 setInterval(flushGrowth, 30000);
 
 function awardXP(amount) {
-  if (!growthLoaded || !(amount > 0)) return;
+  // EVOLVE.active also guards the async gap inside evolveTo() below (it now
+  // stays true until the pack switch has actually landed, not just for the
+  // flash) -- see evolveTo() for why: currentGrowthDex() would otherwise
+  // still resolve to the just-evolved-away-from dex during that gap, and
+  // awarding XP there would resurrect its already-deleted GROWTH record.
+  if (!growthLoaded || !(amount > 0) || EVOLVE.active) return;
   const dex3 = currentGrowthDex();
   if (!dex3) return;
   const rec = ensureGrowthRecord(dex3);
@@ -731,7 +736,7 @@ function evolveTo(fromDex3, toDex3) {
   EVOLVE.active = true;
   EVOLVE.startedAt = performance.now();
   setTimeout(async () => {
-    EVOLVE.active = false;
+    // NOTE: EVOLVE.active is deliberately *not* cleared here -- see below.
     // Move the growth record: same creature, new dex, XP carries over as-is.
     const record = GROWTH[fromDex3] || { xp: 0 };
     delete GROWTH[fromDex3];
@@ -746,6 +751,19 @@ function evolveTo(fromDex3, toDex3) {
     }
     flushGrowth();
     try {
+      // loadPack() is async (awaits a fetch before it sets STATE.pack) --
+      // currentGrowthDex() reads STATE.pack, so between the record move just
+      // above and STATE.pack actually landing on toDex3, it would otherwise
+      // still resolve to fromDex3, which GROWTH no longer has a record for.
+      // Any XP/hunger accrual that ran a tick() during that gap used to
+      // call ensureGrowthRecord(fromDex3) and silently resurrect it as
+      // { xp: 0, hunger: 0, lastFedAt: 0 } -- a zombie that then got
+      // persisted on the next flush. Keeping EVOLVE.active true across this
+      // whole await (awardXP() and the hunger accrual in tick() both now
+      // check it) closes that gap; resetAnimationForNewPack() -- called from
+      // inside loadPack() right after STATE.pack switches -- is what finally
+      // clears it, so accrual only resumes once currentGrowthDex() is
+      // already correctly pointing at toDex3.
       await loadPack(targetId);
       chrome.storage.sync.set({ vcp1_pack: targetId });
       triggerMood("Joyous"); // evolution complete -- portrait is for the newly-evolved pack, loadPack() already switched
@@ -754,6 +772,11 @@ function evolveTo(fromDex3, toDex3) {
       // through every step it has already earned, one flash at a time.
       checkEvolution(toDex3, levelForXp(record.xp));
     } catch (e) {
+      // loadPack() failed before reaching resetAnimationForNewPack(), so
+      // EVOLVE.active would otherwise be stuck true forever -- freezing all
+      // future XP/hunger accrual. Clear it manually so the (still-old) pack
+      // keeps growing normally even though this evolution attempt failed.
+      EVOLVE.active = false;
       console.warn("evolution pack load failed", e);
     }
   }, EVOLVE_FLASH_MS);
@@ -1553,7 +1576,10 @@ function tick(dtMs) {
   // Hunger: rises continuously with active engine time (same "engine is
   // ticking" signal as the XP-per-minute source above), reaching HUNGER_MAX
   // after HUNGER_FULL_MS with no feeding. Feeding resets it in endFeeding().
-  if (growthLoaded) {
+  // Suspended during EVOLVE.active for the same reason awardXP() checks it
+  // (see there): currentGrowthDex() would otherwise resurrect the just-
+  // deleted pre-evolution dex's GROWTH record during evolveTo()'s async gap.
+  if (growthLoaded && !EVOLVE.active) {
     const hungerDex3 = currentGrowthDex();
     if (hungerDex3) {
       const rec = ensureGrowthRecord(hungerDex3);
