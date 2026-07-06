@@ -48,6 +48,25 @@ whole desktop — over every app, not just the browser.
     first evolution (like Pikachu or Jigglypuff) is selectable from the
     start, since nobody begins with a baby Pokémon in the first place —
     they only ever show up through breeding.
+- **Mood bubble** — a small portrait bubble pops up above the sprite's head
+  to show its current mood. It's happy right after evolving, delighted when
+  you play with it via hover attack, calm right after waking up, and
+  startled when the cursor whips past it quickly (cooldown-gated so it
+  doesn't show up too often). Leave the cursor completely still for over an
+  hour and it can look bored, too. Portraits come from the same PMD
+  SpriteCollab source as the sprites, and since not every Pokémon has every
+  expression drawn, an unsupported mood is simply skipped. Settings also
+  shows a small default-mood portrait for the current Pokémon next to the
+  level label.
+- **Feeding** — pick **Feed** (밥 주기 / Feed) from the tray menu or the
+  Feed button in Settings, and an apple drops nearby for the sprite to walk
+  over and eat. The 130 of 493 Pokémon with an Eat animation actually chow
+  down; the rest hop in place instead. Finishing a meal pops a happy mood
+  bubble, and once every 30 minutes it also earns a +30 XP bonus (satisfying
+  hunger itself has no cooldown — that always works). Hunger builds up
+  gradually with active time (full after roughly 4 hours), and once it's
+  built up enough the Pokémon can occasionally look sad — feeding clears it
+  right away.
 - **Multi-display** — one overlay per connected display, and the sprite
   actually walks across display boundaries instead of teleporting.
 - **493 Pokémon** (generations 1–4, national dex #001 Bulbasaur through #493
@@ -130,6 +149,7 @@ Clicking the Pokéball icon in the menu bar opens:
 
 - **Enable / Disable** the follower
 - Open **Settings…**
+- **Feed** (밥 주기) — drops an apple for the Pokémon to eat
 - **Quit**
 
 The **Settings…** window shows the same UI as the browser extension popup:
@@ -138,9 +158,12 @@ The **Settings…** window shows the same UI as the browser extension popup:
   number, or **shuffle** for a random one. Evolved forms you haven't unlocked
   yet show up 🔒-locked and are left out of search and shuffle.
 - **Level / XP** — shows the current Pokémon's level, its XP progress toward
-  the next level (the XP bar), and what it takes to evolve next. If a
-  branching Pokémon like Eevee becomes eligible, buttons appear for picking
-  which evolution you want.
+  the next level (the XP bar), and what it takes to evolve next. A small
+  default-mood portrait for the current Pokémon sits next to the level
+  label. If a branching Pokémon like Eevee becomes eligible, buttons appear
+  for picking which evolution you want.
+- **Hunger / Feed** — shows hunger as a percentage plus a mood emoji, with a
+  **Feed** button that drops an apple for the Pokémon to go eat.
 - **Mode (Follow / Wander)** — switch between Follow, which trails your
   cursor, and Wander, which roams the screen on its own.
 - **SCALE** — how large the sprite is drawn.
@@ -220,7 +243,7 @@ from PokéAPI based on `src/assets/packs/index.json`.
 
 - **Code** — MIT License, © Ali Hamad and contributors. See
   [CREDITS.txt](CREDITS.txt).
-- **Sprites** — from the [PMD Sprite Collab](https://sprites.pmdcollab.org)
+- **Sprites & emotion portraits** — from the [PMD Sprite Collab](https://sprites.pmdcollab.org)
   community, used under **Creative Commons BY-NC 4.0**. Non-commercial use
   only, attribution required.
 - **Pokémon** — Pokémon and all related names and imagery are the intellectual
