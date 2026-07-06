@@ -1157,9 +1157,22 @@ function renderMoodBubble() {
 // "Surprised": a fast cursor passing through a near-miss zone around the
 // sprite (see SURPRISE_* constants above for why this can never collide
 // with the hover-attack trigger).
+//
+// Code review fix: RUNTIME.lastMoveInstantSpeed is a per-mousemove-event
+// value that never decays on its own (unlike RUNTIME.speedAvg, which tick()
+// exponentially decays toward zero once movement stops -- see the
+// VEL_DECAY_* logic above). Without a recency check, a fast cursor that
+// stops while still parked inside the near-miss zone leaves
+// lastMoveInstantSpeed stuck at its last (high) value forever, so this
+// would re-fire Surprised every SURPRISE_COOLDOWN_MS indefinitely even
+// though the cursor is no longer moving. Gated the same way updateHover()
+// already gates its own speed check, with the same HOVER_RECENCY_MS window:
+// a cursor that's genuinely passing through right now is by definition
+// recent, so legitimate Surprised triggers are unaffected.
 function updateSurprise(now) {
   if (!RUNTIME.meta?.states || HOVER.active) return; // don't layer Surprised on top of an in-progress attack
   if (now - lastSurprisedAt < SURPRISE_COOLDOWN_MS) return;
+  if (now - RUNTIME.lastMoveTs >= HOVER_RECENCY_MS) return; // stale instant-speed reading -- cursor isn't actually moving right now
   const st = RUNTIME.meta.states[RUNTIME.anim.name] || RUNTIME.meta.states.idle;
   const halfW = (st.frame.w * CONFIG.scale) / 2 + SURPRISE_MARGIN_PX;
   const halfH = (st.frame.h * CONFIG.scale) / 2 + SURPRISE_MARGIN_PX;
