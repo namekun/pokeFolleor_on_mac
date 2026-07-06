@@ -79,6 +79,44 @@
         "left": 6,
         "frontLeft": 7
       }
+    },
+    "hop": {
+      "sheet": "Hop-Anim.webp",
+      "frame": {
+        "w": 56,
+        "h": 104
+      },
+      "fps": 25,
+      "frames": 10,
+      "rows": {
+        "front": 0,
+        "frontRight": 1,
+        "right": 2,
+        "backRight": 3,
+        "back": 4,
+        "backLeft": 5,
+        "left": 6,
+        "frontLeft": 7
+      }
+    },
+    "rotate": {
+      "sheet": "Rotate-Anim.webp",
+      "frame": {
+        "w": 32,
+        "h": 48
+      },
+      "fps": 30,
+      "frames": 9,
+      "rows": {
+        "front": 0,
+        "frontRight": 1,
+        "right": 2,
+        "backRight": 3,
+        "back": 4,
+        "backLeft": 5,
+        "left": 6,
+        "frontLeft": 7
+      }
     }
   }
 }
